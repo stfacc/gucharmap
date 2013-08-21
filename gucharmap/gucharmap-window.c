@@ -35,10 +35,15 @@
 
 /* #define ENABLE_PRINTING */
 
+typedef struct
+{
+  GtkWidget *grid;
+} GucharmapWindowPrivate;
+
 static void gucharmap_window_class_init (GucharmapWindowClass *klass);
 static void gucharmap_window_init       (GucharmapWindow *window);
 
-G_DEFINE_TYPE (GucharmapWindow, gucharmap_window, GTK_TYPE_APPLICATION_WINDOW)
+G_DEFINE_TYPE_WITH_PRIVATE (GucharmapWindow, gucharmap_window, GTK_TYPE_APPLICATION_WINDOW)
 
 static void
 show_error_dialog (GtkWindow *parent,
@@ -725,6 +730,7 @@ charmap_sync_active_character (GtkWidget *widget,
 static void
 gucharmap_window_init (GucharmapWindow *guw)
 {
+  GucharmapWindowPrivate *priv;
   GtkWidget *grid, *button, *label;
   GucharmapChartable *chartable;
   /* tooltips are NULL because they are never actually shown in the program */
@@ -768,9 +774,10 @@ gucharmap_window_init (GucharmapWindow *guw)
   gunichar active;
   gchar *font;
 
+  gtk_widget_init_template (GTK_WIDGET (guw));
+
   guw->settings = g_settings_new ("org.gnome.Charmap");
 
-  gtk_window_set_title (GTK_WINDOW (guw), _("Character Map"));
   gtk_window_set_icon_name (GTK_WINDOW (guw), GUCHARMAP_ICON_NAME);
 
   g_action_map_add_action_entries (G_ACTION_MAP (guw),
@@ -783,9 +790,10 @@ gucharmap_window_init (GucharmapWindow *guw)
   g_signal_connect (guw->settings, "changed::snap-cols-pow2",
                     G_CALLBACK (snap_cols_pow2_changed), guw);
 
+  priv = gucharmap_window_get_instance_private (guw);
+
   /* Now the widgets */
-  grid = gtk_grid_new ();
-  gtk_container_add (GTK_CONTAINER (guw), grid);
+  grid = priv->grid;
 
   /* The font selector */
   guw->fontsel = gucharmap_mini_font_selection_new ();
@@ -836,8 +844,6 @@ gucharmap_window_init (GucharmapWindow *guw)
   g_signal_connect (guw->status, "realize", G_CALLBACK (status_realize), guw);
 
   g_signal_connect (guw->charmap, "status-message", G_CALLBACK (status_message), guw);
-
-  gtk_widget_show (grid);
 
   gtk_widget_grab_focus (GTK_WIDGET (gucharmap_charmap_get_chartable (guw->charmap)));
 
@@ -908,9 +914,14 @@ static void
 gucharmap_window_class_init (GucharmapWindowClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
+  GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
   object_class->constructor = gucharmap_window_constructor;
   object_class->finalize = gucharmap_window_finalize;
+
+  gtk_widget_class_set_template_from_resource (widget_class,
+                                               "/org/gnome/charmap/ui/window.ui");
+  gtk_widget_class_bind_template_child_private (widget_class, GucharmapWindow, grid);
 }
 
 /* Public API */

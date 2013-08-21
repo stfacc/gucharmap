@@ -164,7 +164,9 @@ gucharmap_LDADD = \
 	$(GTK_LIBS)	\
 	$(INTL_LIBS)
 
-dist_noinst_DATA = gucharmap-menus.ui
+dist_noinst_DATA = \
+	gucharmap-menus.ui \
+	gucharmap-window.ui
 
 gucharmap-resources.h gucharmap-resources.c: gucharmap.gresource.xml $(shell $(GLIB_COMPILE_RESOURCES) --generate-dependencies gucharmap.gresource.xml)
 	$(AM_V_GEN) XMLLINT=$(XMLLINT) $(GLIB_COMPILE_RESOURCES) --target=$@ \

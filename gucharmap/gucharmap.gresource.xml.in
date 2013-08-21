@@ -18,5 +18,6 @@
 <gresources>
   <gresource prefix="/org/gnome/charmap">
     <file alias="ui/menus.ui" preprocess="xml-stripblanks">gucharmap-menus.ui</file>
+    <file alias="ui/window.ui" preprocess="xml-stripblanks">gucharmap-window.ui</file>
   </gresource>
 </gresources>
