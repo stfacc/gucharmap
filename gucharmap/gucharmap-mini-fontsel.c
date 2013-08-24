@@ -46,20 +46,31 @@ enum
   COL_FAMILIY
 };
 
-static void gucharmap_mini_font_selection_class_init (GucharmapMiniFontSelectionClass *klass);
-static void gucharmap_mini_font_selection_init       (GucharmapMiniFontSelection *fontsel);
-static void gucharmap_mini_font_selection_finalize   (GObject *object);
+struct _GucharmapMiniFontSelectionPrivate
+{
+  GtkListStore         *family_store;
+  GtkWidget            *family_treeview;
+  GtkWidget            *bold_button;
+  GtkWidget            *italic_button;
 
-G_DEFINE_TYPE (GucharmapMiniFontSelection, gucharmap_mini_font_selection, GTK_TYPE_DIALOG)
+  GtkAdjustment        *size_adj;
+  GtkWidget            *size;   /* spin button */
+
+  PangoFontDescription *font_desc;
+
+  gint                  default_size;
+};
+
+G_DEFINE_TYPE_WITH_PRIVATE (GucharmapMiniFontSelection, gucharmap_mini_font_selection, GTK_TYPE_DIALOG)
 
 static void
 fill_font_families (GucharmapMiniFontSelection *fontsel)
 {
-  GtkTreeView *tree_view = GTK_TREE_VIEW (fontsel->family);
+  GtkTreeView *tree_view = GTK_TREE_VIEW (fontsel->priv->family_treeview);
   PangoFontFamily **families;
   int n_families, i;
 
-  fontsel->family_store = gtk_list_store_new (1, G_TYPE_STRING);
+  fontsel->priv->family_store = gtk_list_store_new (1, G_TYPE_STRING);
 
   pango_context_list_families (
           gtk_widget_get_pango_context (GTK_WIDGET (fontsel)),
@@ -70,7 +81,7 @@ fill_font_families (GucharmapMiniFontSelection *fontsel)
       PangoFontFamily *family = families[i];
       GtkTreeIter iter;
 
-      gtk_list_store_insert_with_values (fontsel->family_store,
+      gtk_list_store_insert_with_values (fontsel->priv->family_store,
                                          &iter,
                                          -1,
                                          COL_FAMILIY, pango_font_family_get_name (family),
@@ -79,25 +90,25 @@ fill_font_families (GucharmapMiniFontSelection *fontsel)
 
   g_free (families);
 
-  /* Now turn on sorting in the combo box */
-  gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (fontsel->family_store),
+  /* Now turn on sorting in the tree view */
+  gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (fontsel->priv->family_store),
                                         COL_FAMILIY,
                                         GTK_SORT_ASCENDING);
 
-  gtk_tree_view_set_model (tree_view, GTK_TREE_MODEL (fontsel->family_store));
-  g_object_unref (fontsel->family_store);
+  gtk_tree_view_set_model (tree_view, GTK_TREE_MODEL (fontsel->priv->family_store));
+  g_object_unref (fontsel->priv->family_store);
 }
 
 static void
 update_font_family_tree_view (GucharmapMiniFontSelection *fontsel)
 {
-  GtkTreeModel *model = GTK_TREE_MODEL (fontsel->family_store);
-  GtkTreeSelection *selection = gtk_tree_view_get_selection (fontsel->family);
+  GtkTreeModel *model = GTK_TREE_MODEL (fontsel->priv->family_store);
+  GtkTreeSelection *selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (fontsel->priv->family_treeview));
   GtkTreeIter iter;
   const char *font_family;
   gboolean found = FALSE;
 
-  font_family = pango_font_description_get_family (fontsel->font_desc);
+  font_family = pango_font_description_get_family (fontsel->priv->font_desc);
   if (!font_family || !font_family[0]) {
     gtk_tree_selection_unselect_all (selection);
     return;
@@ -117,7 +128,7 @@ update_font_family_tree_view (GucharmapMiniFontSelection *fontsel)
   if (found) {
     GtkTreePath *path = gtk_tree_model_get_path (model, &iter);
     gtk_tree_selection_select_iter (selection, &iter);
-    gtk_tree_view_scroll_to_cell (fontsel->family,
+    gtk_tree_view_scroll_to_cell (GTK_TREE_VIEW (fontsel->priv->family_treeview),
                                   path,
                                   NULL,
                                   FALSE, 0, 0);
@@ -137,14 +148,14 @@ family_changed (GtkTreeSelection *selection,
   if (!gtk_tree_selection_get_selected (selection, NULL, &iter))
     return;
 
-  gtk_tree_model_get (GTK_TREE_MODEL (fontsel->family_store),
+  gtk_tree_model_get (GTK_TREE_MODEL (fontsel->priv->family_store),
                       &iter,
                       COL_FAMILIY, &family,
                       -1);
   if (!family)
     return;
 
-  pango_font_description_set_family (fontsel->font_desc, family);
+  pango_font_description_set_family (fontsel->priv->font_desc, family);
   g_free (family);
 
   g_object_notify (G_OBJECT (fontsel), "font-desc");
@@ -154,7 +165,7 @@ family_changed (GtkTreeSelection *selection,
 static int
 get_font_size (GucharmapMiniFontSelection *fontsel)
 {
-  return PANGO_PIXELS (pango_font_description_get_size (fontsel->font_desc));
+  return PANGO_PIXELS (pango_font_description_get_size (fontsel->priv->font_desc));
 }
 
 /* size is in points */
@@ -163,9 +174,9 @@ set_font_size (GucharmapMiniFontSelection *fontsel,
                int size)
 {
   size = CLAMP (size, MIN_FONT_SIZE, MAX_FONT_SIZE);
-  pango_font_description_set_size (fontsel->font_desc, PANGO_SCALE * size);
+  pango_font_description_set_size (fontsel->priv->font_desc, PANGO_SCALE * size);
 
-  gtk_adjustment_set_value (GTK_ADJUSTMENT (fontsel->size_adj), size);
+  //gtk_adjustment_set_value (GTK_ADJUSTMENT (fontsel->size_adj), size);
 
   g_object_notify (G_OBJECT (fontsel), "font-desc");
 }
@@ -185,7 +196,7 @@ static void
 gucharmap_mini_font_selection_finalize (GObject *object)
 {
   GucharmapMiniFontSelection *fontsel = GUCHARMAP_MINI_FONT_SELECTION (object);
-  pango_font_description_free (fontsel->font_desc);
+  pango_font_description_free (fontsel->priv->font_desc);
 
   G_OBJECT_CLASS (gucharmap_mini_font_selection_parent_class)->finalize (object);
 }
@@ -230,10 +241,17 @@ static void
 gucharmap_mini_font_selection_class_init (GucharmapMiniFontSelectionClass *klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
+  GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
   gobject_class->finalize = gucharmap_mini_font_selection_finalize;
   gobject_class->get_property = gucharmap_mini_font_selection_get_property;
   gobject_class->set_property = gucharmap_mini_font_selection_set_property;
+
+  gtk_widget_class_set_template_from_resource (widget_class,
+                                               "/org/gnome/charmap/ui/fontsel.ui");
+  gtk_widget_class_bind_template_child_private (widget_class, GucharmapMiniFontSelection, family_treeview);
+  gtk_widget_class_bind_template_child_private (widget_class, GucharmapMiniFontSelection, bold_button);
+
 
   g_object_class_install_property
     (gobject_class,
@@ -251,9 +269,9 @@ bold_toggled (GtkToggleButton *toggle,
               GucharmapMiniFontSelection *fontsel)
 {
   if (gtk_toggle_button_get_active (toggle))
-    pango_font_description_set_weight (fontsel->font_desc, PANGO_WEIGHT_BOLD);
+    pango_font_description_set_weight (fontsel->priv->font_desc, PANGO_WEIGHT_BOLD);
   else
-    pango_font_description_set_weight (fontsel->font_desc, PANGO_WEIGHT_NORMAL);
+    pango_font_description_set_weight (fontsel->priv->font_desc, PANGO_WEIGHT_NORMAL);
 
   g_object_notify (G_OBJECT (fontsel), "font-desc");
 }
@@ -263,9 +281,9 @@ italic_toggled (GtkToggleButton *toggle,
                 GucharmapMiniFontSelection *fontsel)
 {
   if (gtk_toggle_button_get_active (toggle))
-    pango_font_description_set_style (fontsel->font_desc, PANGO_STYLE_ITALIC);
+    pango_font_description_set_style (fontsel->priv->font_desc, PANGO_STYLE_ITALIC);
   else
-    pango_font_description_set_style (fontsel->font_desc, PANGO_STYLE_NORMAL);
+    pango_font_description_set_style (fontsel->priv->font_desc, PANGO_STYLE_NORMAL);
 
   g_object_notify (G_OBJECT (fontsel), "font-desc");
 }
@@ -273,41 +291,45 @@ italic_toggled (GtkToggleButton *toggle,
 static void
 gucharmap_mini_font_selection_init (GucharmapMiniFontSelection *fontsel)
 {
+  GucharmapMiniFontSelectionPrivate *priv;
   GtkCellRenderer *renderer;
   GtkTreeViewColumn *column;
   GtkWidget *content, *scrolled;
   GtkStyle *style;
   AtkObject *accessib;
 
+  gtk_widget_init_template (GTK_WIDGET (fontsel));
+
+  priv = fontsel->priv = gucharmap_mini_font_selection_get_instance_private (fontsel);
+
   gtk_widget_ensure_style (GTK_WIDGET (fontsel));
   style = gtk_widget_get_style (GTK_WIDGET (fontsel));
-  fontsel->font_desc = pango_font_description_copy (style->font_desc);
-  fontsel->default_size = -1;
+  priv->font_desc = pango_font_description_copy (style->font_desc);
+  priv->default_size = -1;
 
-  fontsel->size_adj = gtk_adjustment_new (MIN_FONT_SIZE, 
-                                          MIN_FONT_SIZE, MAX_FONT_SIZE, 1, 8, 0);
+  priv->size_adj = gtk_adjustment_new (MIN_FONT_SIZE,
+                                       MIN_FONT_SIZE, MAX_FONT_SIZE, 1, 8, 0);
 
   accessib = gtk_widget_get_accessible (GTK_WIDGET (fontsel));
   atk_object_set_name (accessib, _("Font"));
-
-  fontsel->family = gtk_tree_view_new ();
 
   renderer = gtk_cell_renderer_text_new ();
   column = gtk_tree_view_column_new_with_attributes ("Font Family",
                                                      renderer,
                                                      "text", COL_FAMILIY,
                                                      NULL);
-  gtk_tree_view_append_column (GTK_TREE_VIEW (fontsel->family), column);
-  gtk_widget_show (fontsel->family);
-  accessib = gtk_widget_get_accessible (fontsel->family);
-  atk_object_set_name (accessib, _("Font Family"));
+  gtk_tree_view_append_column (GTK_TREE_VIEW (priv->family_treeview), column);
+  //gtk_widget_show (fontsel->family);
+  //accessib = gtk_widget_get_accessible (fontsel->family_treeview);
+  //atk_object_set_name (accessib, _("Font Family"));
 
-  fontsel->bold = gtk_toggle_button_new_with_mnemonic (GTK_STOCK_BOLD);
-  gtk_button_set_use_stock (GTK_BUTTON (fontsel->bold), TRUE);
-  gtk_widget_show (fontsel->bold);
-  g_signal_connect (fontsel->bold, "toggled",
+  //fontsel->bold = gtk_toggle_button_new_with_mnemonic (GTK_STOCK_BOLD);
+  //gtk_button_set_use_stock (GTK_BUTTON (fontsel->bold), TRUE);
+  //gtk_widget_show (fontsel->bold);
+  g_signal_connect (priv->bold_button, "toggled",
                     G_CALLBACK (bold_toggled), fontsel);
 
+  /*
   fontsel->italic = gtk_toggle_button_new_with_mnemonic (GTK_STOCK_ITALIC);
   gtk_button_set_use_stock (GTK_BUTTON (fontsel->italic), TRUE);
   gtk_widget_show (fontsel->italic);
@@ -321,23 +343,24 @@ gucharmap_mini_font_selection_init (GucharmapMiniFontSelection *fontsel)
   atk_object_set_name (accessib, _("Font Size"));
   g_signal_connect (fontsel->size_adj, "value-changed",
                     G_CALLBACK (font_size_changed), fontsel);
+  */
 
   fill_font_families (fontsel);
 
-  scrolled = gtk_scrolled_window_new (NULL, NULL);
-  gtk_container_add (GTK_CONTAINER (scrolled), fontsel->family);
+  //scrolled = gtk_scrolled_window_new (NULL, NULL);
+  //gtk_container_add (GTK_CONTAINER (scrolled), fontsel->family);
 
-  content = gtk_dialog_get_content_area (GTK_DIALOG (fontsel));
-  gtk_box_pack_start (GTK_BOX (content), scrolled, TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (content), fontsel->bold, FALSE, FALSE, 0);
-  gtk_box_pack_start (GTK_BOX (content), fontsel->italic, FALSE, FALSE, 0);
-  gtk_box_pack_start (GTK_BOX (content), fontsel->size, FALSE, FALSE, 0);
+  //content = gtk_dialog_get_content_area (GTK_DIALOG (fontsel));
+  //gtk_box_pack_start (GTK_BOX (content), scrolled, TRUE, TRUE, 0);
+  //gtk_box_pack_start (GTK_BOX (content), fontsel->bold, FALSE, FALSE, 0);
+  //gtk_box_pack_start (GTK_BOX (content), fontsel->italic, FALSE, FALSE, 0);
+  //gtk_box_pack_start (GTK_BOX (content), fontsel->size, FALSE, FALSE, 0);
 
-  gtk_container_set_border_width (GTK_CONTAINER (fontsel), 6);
+  //gtk_container_set_border_width (GTK_CONTAINER (fontsel), 6);
 
-  gtk_widget_show_all (GTK_WIDGET (content));
+  //gtk_widget_show_all (GTK_WIDGET (content));
 
-  g_signal_connect (gtk_tree_view_get_selection (fontsel->family), "changed",
+  g_signal_connect (gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->family_treeview)), "changed",
                     G_CALLBACK (family_changed), fontsel);
 }
 
@@ -370,26 +393,28 @@ gucharmap_mini_font_selection_set_font_desc (GucharmapMiniFontSelection *fontsel
     new_font_family = pango_font_description_get_family (new_font_desc);
   }
 
-  if ((!fontsel->font_desc ||
-       strcmp (pango_font_description_get_family (fontsel->font_desc), new_font_family) != 0) &&
+  if ((!fontsel->priv->font_desc ||
+       strcmp (pango_font_description_get_family (fontsel->priv->font_desc), new_font_family) != 0) &&
       pango_font_description_get_size (new_font_desc) > 0)
-    fontsel->default_size = pango_font_description_get_size (new_font_desc) / PANGO_SCALE;
+    fontsel->priv->default_size = pango_font_description_get_size (new_font_desc) / PANGO_SCALE;
 
-  if (fontsel->font_desc)
-    pango_font_description_free (fontsel->font_desc);
+  if (fontsel->priv->font_desc)
+    pango_font_description_free (fontsel->priv->font_desc);
   
-  fontsel->font_desc = new_font_desc;
+  fontsel->priv->font_desc = new_font_desc;
   
   update_font_family_tree_view (fontsel);
     
   /* treat oblique and italic both as italic */
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (fontsel->italic), pango_font_description_get_style (fontsel->font_desc) == PANGO_STYLE_ITALIC || pango_font_description_get_style (fontsel->font_desc) == PANGO_STYLE_OBLIQUE);
+  //gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (fontsel->italic), pango_font_description_get_style (fontsel->font_desc) == PANGO_STYLE_ITALIC || pango_font_description_get_style (fontsel->font_desc) == PANGO_STYLE_OBLIQUE);
 
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (fontsel->bold), pango_font_description_get_weight (fontsel->font_desc) > PANGO_WEIGHT_NORMAL);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (fontsel->priv->bold_button), pango_font_description_get_weight (fontsel->priv->font_desc) > PANGO_WEIGHT_NORMAL);
 
+  /*
   gtk_adjustment_set_value (
           GTK_ADJUSTMENT (fontsel->size_adj), 
           pango_font_description_get_size (fontsel->font_desc) / PANGO_SCALE);
+  */
 
   g_object_notify (G_OBJECT (fontsel), "font-desc");
 
@@ -401,7 +426,7 @@ gucharmap_mini_font_selection_get_font_desc (GucharmapMiniFontSelection *fontsel
 {
   g_return_val_if_fail (GUCHARMAP_IS_MINI_FONT_SELECTION (fontsel), NULL);
 
-  return fontsel->font_desc;
+  return fontsel->priv->font_desc;
 }
 
 void
@@ -426,8 +451,8 @@ gucharmap_mini_font_selection_change_font_size (GucharmapMiniFontSelection *font
 void
 gucharmap_mini_font_selection_reset_font_size (GucharmapMiniFontSelection *fontsel)
 {
-  if (fontsel->default_size > 0) {
-    set_font_size (fontsel, fontsel->default_size);
+  if (fontsel->priv->default_size > 0) {
+    set_font_size (fontsel, fontsel->priv->default_size);
   } else {
     GtkStyle *style;
 

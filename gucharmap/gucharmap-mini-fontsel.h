@@ -33,22 +33,13 @@ G_BEGIN_DECLS
 
 typedef struct _GucharmapMiniFontSelection GucharmapMiniFontSelection;
 typedef struct _GucharmapMiniFontSelectionClass GucharmapMiniFontSelectionClass;
+typedef struct _GucharmapMiniFontSelectionPrivate GucharmapMiniFontSelectionPrivate;
 
 struct _GucharmapMiniFontSelection
 {
   GtkDialog parent;
 
-  GtkListStore         *family_store;
-  GtkWidget            *family; /* tree view */
-  GtkWidget            *bold;   /* toggle button*/
-  GtkWidget            *italic; /* toggle button*/
-
-  GtkAdjustment        *size_adj;
-  GtkWidget            *size;   /* spin button */
-
-  PangoFontDescription *font_desc;
-
-  gint                  default_size;
+  GucharmapMiniFontSelectionPrivate *priv;
 };
 
 struct _GucharmapMiniFontSelectionClass

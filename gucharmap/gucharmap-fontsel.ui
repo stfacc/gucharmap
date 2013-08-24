@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.15.2 on Sat Aug 24 12:08:20 2013 -->
+<interface>
+  <!-- interface-requires gtk+ 3.10 -->
+  <template class="GucharmapMiniFontSelection" parent="GtkDialog">
+    <property name="can_focus">False</property>
+    <property name="default_width">400</property> 
+    <property name="default_height">300</property>
+    <child type="titlebar">
+      <object class="GtkHeaderBar" id="header_bar">
+        <property name="visible">True</property>
+        <property name="title" translatable="yes">Font</property>
+        <child>
+          <object class="GtkButton" id="cancel_button">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Cancel</property>
+            <signal name="clicked" handler="gtk_widget_hide" object="GucharmapMiniFontSelection" swapped="yes"/>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child internal-child="vbox">
+      <object class="GtkBox" id="dialog-vbox1">
+        <property name="can_focus">False</property>
+        <child>
+          <placeholder/>
+        </child>
+        <child>
+          <object class="GtkBox" id="box">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkScrolledWindow" id="scrolled">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="shadow_type">in</property>
+                <property name="vexpand">True</property>
+                <child>
+                  <object class="GtkTreeView" id="family_treeview">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <child internal-child="selection">
+                      <object class="GtkTreeSelection" id="selection"/>
+                    </child>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <placeholder/>
+            </child>
+            <child>
+              <object class="GtkToggleButton" id="bold_button">
+                <property name="label" translatable="yes">Bold</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

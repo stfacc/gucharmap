@@ -166,6 +166,7 @@ gucharmap_LDADD = \
 
 dist_noinst_DATA = \
 	gucharmap-menus.ui \
+	gucharmap-fontsel.ui \
 	gucharmap-window.ui
 
 gucharmap-resources.h gucharmap-resources.c: gucharmap.gresource.xml $(shell $(GLIB_COMPILE_RESOURCES) --generate-dependencies gucharmap.gresource.xml)
