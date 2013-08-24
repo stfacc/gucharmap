@@ -37,23 +37,6 @@
     </section>
     <section>
       <item>
-        <attribute name="label" translatable="yes">Zoom _In</attribute>
-        <attribute name="action">app.zoom-in</attribute>
-        <attribute name="accel">&lt;Primary&gt;plus</attribute>
-      </item>
-      <item>
-        <attribute name="label" translatable="yes">Zoom _Out</attribute>
-        <attribute name="action">app.zoom-out</attribute>
-        <attribute name="accel">&lt;Primary&gt;minus</attribute>
-      </item>
-      <item>
-        <attribute name="label" translatable="yes">_Normal Size</attribute>
-        <attribute name="action">app.normal-size</attribute>
-        <attribute name="accel">&lt;Primary&gt;0</attribute>
-      </item>
-    </section>
-    <section>
-      <item>
         <attribute name="label" translatable="yes">_Find</attribute>
         <attribute name="action">app.find</attribute>
         <attribute name="accel">&lt;Primary&gt;f</attribute>
