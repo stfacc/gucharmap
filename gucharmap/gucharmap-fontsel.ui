@@ -17,6 +17,15 @@
             <signal name="clicked" handler="gtk_widget_hide" object="GucharmapMiniFontSelection" swapped="yes"/>
           </object>
         </child>
+        <child>
+          <object class="GtkButton" id="select_button">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Select</property>
+          </object>
+          <packing>
+            <property name="pack-type">end</property>
+          </packing>
+        </child>
       </object>
     </child>
     <child internal-child="vbox">
@@ -77,5 +86,8 @@
         </child>
       </object>
     </child>
+    <action-widgets>
+      <action-widget response="-5">select_button</action-widget>
+    </action-widgets>
   </template>
 </interface>

@@ -37,12 +37,6 @@
     </section>
     <section>
       <item>
-        <attribute name="label" translatable="yes">Sho_w only glyphs from this font</attribute>
-        <attribute name="action">app.show-only-glyphs-in-font</attribute>
-      </item>
-    </section>
-    <section>
-      <item>
         <attribute name="label" translatable="yes">Zoom _In</attribute>
         <attribute name="action">app.zoom-in</attribute>
         <attribute name="accel">&lt;Primary&gt;plus</attribute>

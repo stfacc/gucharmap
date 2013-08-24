@@ -37,6 +37,9 @@
 
 typedef struct
 {
+  GtkWidget *header_bar;
+  GtkWidget *font_sel_button;
+  GtkWidget *reset_font_button;
   GtkWidget *grid;
 } GucharmapWindowPrivate;
 
@@ -311,6 +314,21 @@ show_font_sel (GSimpleAction *action,
   GucharmapWindow *guw = data;
 
   gtk_widget_show (GTK_WIDGET (guw->fontsel));
+}
+
+static void
+reset_font (GSimpleAction *action,
+            GVariant      *parameter,
+            gpointer       data)
+{
+  GucharmapWindow *guw = data;
+  GucharmapWindowPrivate *priv = gucharmap_window_get_instance_private (guw);
+
+  gtk_header_bar_set_title (priv->header_bar, _("All fonts"));
+  gucharmap_charmap_set_font_fallback (guw->charmap, TRUE);
+
+  gtk_widget_show (priv->font_sel_button);
+  gtk_widget_hide (priv->reset_font_button);
 }
 
 static void
@@ -687,28 +705,6 @@ save_last_char_idle_cb (GucharmapWindow *guw)
 }
 
 static void
-fontsel_sync_font_desc (GucharmapMiniFontSelection *fontsel,
-                        GParamSpec *pspec,
-                        GucharmapWindow *guw)
-{
-  PangoFontDescription *font_desc;
-  char *font;
-
-  if (guw->in_notification)
-    return;
-
-  font_desc = gucharmap_mini_font_selection_get_font_desc (fontsel);
-
-  guw->in_notification = TRUE;
-  gucharmap_charmap_set_font_desc (guw->charmap, font_desc);
-  guw->in_notification = FALSE;
-
-  font = pango_font_description_to_string (font_desc);
-  g_settings_set (guw->settings, "font", "ms", font);
-  g_free (font);
-}
-
-static void
 charmap_sync_font_desc (GucharmapCharmap *charmap,
                         GParamSpec *pspec,
                         GucharmapWindow *guw)
@@ -738,6 +734,41 @@ charmap_sync_active_character (GtkWidget *widget,
 }
 
 static void
+fontsel_response_cb (GtkDialog *dialog,
+                     gint       response_id,
+                     gpointer   data)
+{
+  GucharmapWindow *guw = GUCHARMAP_WINDOW (data);
+  GucharmapWindowPrivate *priv = gucharmap_window_get_instance_private (guw);
+  GucharmapMiniFontSelection *fontsel = GUCHARMAP_MINI_FONT_SELECTION (dialog);
+  PangoFontDescription *font_desc;
+  char *font;
+
+  if (response_id == GTK_RESPONSE_OK)
+    {
+      if (guw->in_notification)
+        return;
+
+      font_desc = gucharmap_mini_font_selection_get_font_desc (fontsel);
+
+      guw->in_notification = TRUE;
+      gucharmap_charmap_set_font_desc (guw->charmap, font_desc);
+      gucharmap_charmap_set_font_fallback (guw->charmap, FALSE);
+      guw->in_notification = FALSE;
+
+      font = pango_font_description_to_string (font_desc);
+      g_settings_set (guw->settings, "font", "ms", font);
+      gtk_header_bar_set_title (GTK_HEADER_BAR (priv->header_bar),
+                                font);
+      g_free (font);
+
+      gtk_widget_hide (fontsel);
+      gtk_widget_show (priv->reset_font_button);
+      gtk_widget_hide (priv->font_sel_button);
+    }
+}
+
+static void
 gucharmap_window_init (GucharmapWindow *guw)
 {
   GucharmapWindowPrivate *priv;
@@ -756,6 +787,7 @@ gucharmap_window_init (GucharmapWindow *guw)
     { "close", close_window, NULL, NULL, NULL },
 
     { "show-font-sel", show_font_sel, NULL, NULL, NULL },
+    { "reset-font", reset_font, NULL, NULL, NULL },
 
     { "zoom-in", font_bigger, NULL, NULL, NULL },
     { "zoom-out", font_smaller, NULL, NULL, NULL },
@@ -812,6 +844,9 @@ gucharmap_window_init (GucharmapWindow *guw)
   g_signal_connect (guw->fontsel, "delete-event",
                     G_CALLBACK (gtk_widget_hide_on_delete),
                     NULL);
+  g_signal_connect (guw->fontsel, "response",
+                    G_CALLBACK (fontsel_response_cb),
+                    guw);
 
   /* The charmap */
   guw->charmap = GUCHARMAP_CHARMAP (gucharmap_charmap_new ());
@@ -878,6 +913,8 @@ gucharmap_window_init (GucharmapWindow *guw)
   active = g_settings_get_uint (guw->settings, "last-char");
   gucharmap_charmap_set_active_character (guw->charmap, active);
 
+  g_action_activate (g_action_map_lookup_action (G_ACTION_MAP (guw), "reset-font"), NULL);
+
   /* window geometry */
   gucharmap_settings_add_window (GTK_WINDOW (guw));
 
@@ -886,8 +923,6 @@ gucharmap_window_init (GucharmapWindow *guw)
    */
   g_signal_connect (guw->charmap, "notify::active-character",
                     G_CALLBACK (charmap_sync_active_character), guw);
-  g_signal_connect (guw->fontsel, "notify::font-desc",
-                    G_CALLBACK (fontsel_sync_font_desc), guw);
 }
 
 static void
@@ -935,6 +970,9 @@ gucharmap_window_class_init (GucharmapWindowClass *klass)
   gtk_widget_class_set_template_from_resource (widget_class,
                                                "/org/gnome/charmap/ui/window.ui");
   gtk_widget_class_bind_template_child_private (widget_class, GucharmapWindow, grid);
+  gtk_widget_class_bind_template_child_private (widget_class, GucharmapWindow, header_bar);
+  gtk_widget_class_bind_template_child_private (widget_class, GucharmapWindow, font_sel_button);
+  gtk_widget_class_bind_template_child_private (widget_class, GucharmapWindow, reset_font_button);
 }
 
 /* Public API */

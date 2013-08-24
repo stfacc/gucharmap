@@ -7,23 +7,32 @@
       <object class="GtkHeaderBar" id="header_bar">
         <property name="visible">True</property>
         <property name="show_close_button">True</property>
-        <property name="title" translatable="yes">Character Map</property>
         <child>
-        <object class="GtkButton" id="font_sel_button">
-          <property name="visible">True</property>
-          <property name="action_name">win.show-font-sel</property>
-          <child>
-            <object class="GtkImage" id="font_sel_image">
-              <property name="visible">True</property>
-              <property name="icon-name">view-list-symbolic</property>
-              <property name="icon-size">1</property>
-            </object>
-          </child>
-        </object>
-        <packing>
-          <property name="pack-type">end</property>
-        </packing>
-      </child>
+          <object class="GtkButton" id="font_sel_button">
+            <property name="visible">True</property>
+            <property name="action_name">win.show-font-sel</property>
+            <child>
+              <object class="GtkImage" id="font_sel_image">
+                <property name="visible">True</property>
+                <property name="icon-name">view-list-symbolic</property>
+                <property name="icon-size">1</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="pack-type">end</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="reset_font_button">
+            <property name="visible">True</property>
+            <property name="action_name">win.reset-font</property>
+            <property name="label" translatable="yes">Reset</property>
+          </object>
+          <packing>
+            <property name="pack-type">end</property>
+          </packing>
+        </child>
       </object>
     </child>
     <child>
