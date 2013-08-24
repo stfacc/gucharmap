@@ -19,6 +19,7 @@
 
 #include <config.h>
 
+#define _GNU_SOURCE  /* for strcasestr */
 #include <string.h>
 
 #include <glib/gi18n-lib.h>
@@ -48,8 +49,9 @@ enum
 
 struct _GucharmapMiniFontSelectionPrivate
 {
-  GtkListStore         *family_store;
+  GtkTreeModel         *model_sort;
   GtkWidget            *family_treeview;
+  GtkWidget            *search_entry;
 
   GtkAdjustment        *size_adj;
   GtkWidget            *size;   /* spin button */
@@ -61,6 +63,30 @@ struct _GucharmapMiniFontSelectionPrivate
 
 G_DEFINE_TYPE_WITH_PRIVATE (GucharmapMiniFontSelection, gucharmap_mini_font_selection, GTK_TYPE_DIALOG)
 
+static gboolean
+model_visible_func (GtkTreeModel *model,
+                    GtkTreeIter  *iter,
+                    gpointer      data)
+{
+  GucharmapMiniFontSelection *fontsel = GUCHARMAP_MINI_FONT_SELECTION (data);
+  gchar *family;
+  gchar *text;
+  gboolean visible = FALSE;
+
+  text = gtk_entry_get_text (GTK_ENTRY (fontsel->priv->search_entry));
+
+  gtk_tree_model_get (model, iter,
+                      COL_FAMILIY, &family,
+                      -1);
+
+  if (family && strcasestr (family, text))
+    visible = TRUE;
+
+  g_free (family);
+
+  return visible;
+}
+
 static void
 fill_font_families (GucharmapMiniFontSelection *fontsel)
 {
@@ -68,7 +94,14 @@ fill_font_families (GucharmapMiniFontSelection *fontsel)
   PangoFontFamily **families;
   int n_families, i;
 
-  fontsel->priv->family_store = gtk_list_store_new (1, G_TYPE_STRING);
+  GtkTreeModel *model, *model_filter, *model_sort;
+
+  model = gtk_list_store_new (1, G_TYPE_STRING);
+  model_filter = gtk_tree_model_filter_new (model, NULL);
+  fontsel->priv->model_sort = model_sort = gtk_tree_model_sort_new_with_model (model_filter);
+
+  gtk_tree_model_filter_set_visible_func (GTK_TREE_MODEL_FILTER (model_filter),
+                                          model_visible_func, fontsel, NULL);
 
   pango_context_list_families (
           gtk_widget_get_pango_context (GTK_WIDGET (fontsel)),
@@ -79,7 +112,7 @@ fill_font_families (GucharmapMiniFontSelection *fontsel)
       PangoFontFamily *family = families[i];
       GtkTreeIter iter;
 
-      gtk_list_store_insert_with_values (fontsel->priv->family_store,
+      gtk_list_store_insert_with_values ((GtkListStore *) model,
                                          &iter,
                                          -1,
                                          COL_FAMILIY, pango_font_family_get_name (family),
@@ -89,14 +122,16 @@ fill_font_families (GucharmapMiniFontSelection *fontsel)
   g_free (families);
 
   /* Now turn on sorting in the tree view */
-  gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (fontsel->priv->family_store),
+  gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (model_sort),
                                         COL_FAMILIY,
                                         GTK_SORT_ASCENDING);
 
-  gtk_tree_view_set_model (tree_view, GTK_TREE_MODEL (fontsel->priv->family_store));
-  g_object_unref (fontsel->priv->family_store);
+  gtk_tree_view_set_model (tree_view, GTK_TREE_MODEL (model_sort));
+
+  g_object_unref (model);
 }
 
+/*
 static void
 update_font_family_tree_view (GucharmapMiniFontSelection *fontsel)
 {
@@ -135,6 +170,7 @@ update_font_family_tree_view (GucharmapMiniFontSelection *fontsel)
     gtk_tree_selection_unselect_all (selection);
   }
 }
+*/
 
 static void
 family_changed (GtkTreeSelection *selection,
@@ -146,10 +182,11 @@ family_changed (GtkTreeSelection *selection,
   if (!gtk_tree_selection_get_selected (selection, NULL, &iter))
     return;
 
-  gtk_tree_model_get (GTK_TREE_MODEL (fontsel->priv->family_store),
+  gtk_tree_model_get (GTK_TREE_MODEL (fontsel->priv->model_sort),
                       &iter,
                       COL_FAMILIY, &family,
                       -1);
+
   if (!family)
     return;
 
@@ -188,6 +225,15 @@ font_size_changed (GtkAdjustment *adjustment,
   new_size = gtk_adjustment_get_value (adjustment);
   if (new_size != get_font_size (fontsel))
     set_font_size (fontsel, new_size);
+}
+
+static void
+search_entry_changed_cb (GtkEditable *entry,
+                         gpointer     data)
+{
+  GucharmapMiniFontSelection *fontsel = GUCHARMAP_MINI_FONT_SELECTION (data);
+
+  gtk_tree_model_filter_refilter (gtk_tree_model_sort_get_model (fontsel->priv->model_sort));
 }
 
 static void
@@ -248,6 +294,7 @@ gucharmap_mini_font_selection_class_init (GucharmapMiniFontSelectionClass *klass
   gtk_widget_class_set_template_from_resource (widget_class,
                                                "/org/gnome/charmap/ui/fontsel.ui");
   gtk_widget_class_bind_template_child_private (widget_class, GucharmapMiniFontSelection, family_treeview);
+  gtk_widget_class_bind_template_child_private (widget_class, GucharmapMiniFontSelection, search_entry);
 
   g_object_class_install_property
     (gobject_class,
@@ -296,6 +343,9 @@ gucharmap_mini_font_selection_init (GucharmapMiniFontSelection *fontsel)
 
   g_signal_connect (gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->family_treeview)), "changed",
                     G_CALLBACK (family_changed), fontsel);
+
+  g_signal_connect (priv->search_entry, "changed",
+                    G_CALLBACK (search_entry_changed_cb), fontsel);
 }
 
 GtkWidget *
@@ -337,7 +387,7 @@ gucharmap_mini_font_selection_set_font_desc (GucharmapMiniFontSelection *fontsel
   
   fontsel->priv->font_desc = new_font_desc;
   
-  update_font_family_tree_view (fontsel);
+  //update_font_family_tree_view (fontsel);
     
   /*
   gtk_adjustment_set_value (
