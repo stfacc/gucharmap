@@ -64,19 +64,6 @@
             <child>
               <placeholder/>
             </child>
-            <child>
-              <object class="GtkToggleButton" id="bold_button">
-                <property name="label" translatable="yes">Bold</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">2</property>
-              </packing>
-            </child>
           </object>
           <packing>
             <property name="expand">True</property>

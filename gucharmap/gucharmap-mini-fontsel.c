@@ -50,8 +50,6 @@ struct _GucharmapMiniFontSelectionPrivate
 {
   GtkListStore         *family_store;
   GtkWidget            *family_treeview;
-  GtkWidget            *bold_button;
-  GtkWidget            *italic_button;
 
   GtkAdjustment        *size_adj;
   GtkWidget            *size;   /* spin button */
@@ -250,8 +248,6 @@ gucharmap_mini_font_selection_class_init (GucharmapMiniFontSelectionClass *klass
   gtk_widget_class_set_template_from_resource (widget_class,
                                                "/org/gnome/charmap/ui/fontsel.ui");
   gtk_widget_class_bind_template_child_private (widget_class, GucharmapMiniFontSelection, family_treeview);
-  gtk_widget_class_bind_template_child_private (widget_class, GucharmapMiniFontSelection, bold_button);
-
 
   g_object_class_install_property
     (gobject_class,
@@ -262,30 +258,6 @@ gucharmap_mini_font_selection_class_init (GucharmapMiniFontSelectionClass *klass
                          G_PARAM_STATIC_NAME |
                          G_PARAM_STATIC_NICK |
                          G_PARAM_STATIC_BLURB));
-}
-
-static void
-bold_toggled (GtkToggleButton *toggle,
-              GucharmapMiniFontSelection *fontsel)
-{
-  if (gtk_toggle_button_get_active (toggle))
-    pango_font_description_set_weight (fontsel->priv->font_desc, PANGO_WEIGHT_BOLD);
-  else
-    pango_font_description_set_weight (fontsel->priv->font_desc, PANGO_WEIGHT_NORMAL);
-
-  g_object_notify (G_OBJECT (fontsel), "font-desc");
-}
-
-static void
-italic_toggled (GtkToggleButton *toggle,
-                GucharmapMiniFontSelection *fontsel)
-{
-  if (gtk_toggle_button_get_active (toggle))
-    pango_font_description_set_style (fontsel->priv->font_desc, PANGO_STYLE_ITALIC);
-  else
-    pango_font_description_set_style (fontsel->priv->font_desc, PANGO_STYLE_NORMAL);
-
-  g_object_notify (G_OBJECT (fontsel), "font-desc");
 }
 
 static void
@@ -319,46 +291,8 @@ gucharmap_mini_font_selection_init (GucharmapMiniFontSelection *fontsel)
                                                      "text", COL_FAMILIY,
                                                      NULL);
   gtk_tree_view_append_column (GTK_TREE_VIEW (priv->family_treeview), column);
-  //gtk_widget_show (fontsel->family);
-  //accessib = gtk_widget_get_accessible (fontsel->family_treeview);
-  //atk_object_set_name (accessib, _("Font Family"));
-
-  //fontsel->bold = gtk_toggle_button_new_with_mnemonic (GTK_STOCK_BOLD);
-  //gtk_button_set_use_stock (GTK_BUTTON (fontsel->bold), TRUE);
-  //gtk_widget_show (fontsel->bold);
-  g_signal_connect (priv->bold_button, "toggled",
-                    G_CALLBACK (bold_toggled), fontsel);
-
-  /*
-  fontsel->italic = gtk_toggle_button_new_with_mnemonic (GTK_STOCK_ITALIC);
-  gtk_button_set_use_stock (GTK_BUTTON (fontsel->italic), TRUE);
-  gtk_widget_show (fontsel->italic);
-  g_signal_connect (fontsel->italic, "toggled",
-                    G_CALLBACK (italic_toggled), fontsel);
-
-  fontsel->size = gtk_spin_button_new (GTK_ADJUSTMENT (fontsel->size_adj),
-                                       0, 0);
-  gtk_widget_show (fontsel->size);
-  accessib = gtk_widget_get_accessible (fontsel->size);
-  atk_object_set_name (accessib, _("Font Size"));
-  g_signal_connect (fontsel->size_adj, "value-changed",
-                    G_CALLBACK (font_size_changed), fontsel);
-  */
 
   fill_font_families (fontsel);
-
-  //scrolled = gtk_scrolled_window_new (NULL, NULL);
-  //gtk_container_add (GTK_CONTAINER (scrolled), fontsel->family);
-
-  //content = gtk_dialog_get_content_area (GTK_DIALOG (fontsel));
-  //gtk_box_pack_start (GTK_BOX (content), scrolled, TRUE, TRUE, 0);
-  //gtk_box_pack_start (GTK_BOX (content), fontsel->bold, FALSE, FALSE, 0);
-  //gtk_box_pack_start (GTK_BOX (content), fontsel->italic, FALSE, FALSE, 0);
-  //gtk_box_pack_start (GTK_BOX (content), fontsel->size, FALSE, FALSE, 0);
-
-  //gtk_container_set_border_width (GTK_CONTAINER (fontsel), 6);
-
-  //gtk_widget_show_all (GTK_WIDGET (content));
 
   g_signal_connect (gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->family_treeview)), "changed",
                     G_CALLBACK (family_changed), fontsel);
@@ -405,11 +339,6 @@ gucharmap_mini_font_selection_set_font_desc (GucharmapMiniFontSelection *fontsel
   
   update_font_family_tree_view (fontsel);
     
-  /* treat oblique and italic both as italic */
-  //gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (fontsel->italic), pango_font_description_get_style (fontsel->font_desc) == PANGO_STYLE_ITALIC || pango_font_description_get_style (fontsel->font_desc) == PANGO_STYLE_OBLIQUE);
-
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (fontsel->priv->bold_button), pango_font_description_get_weight (fontsel->priv->font_desc) > PANGO_WEIGHT_NORMAL);
-
   /*
   gtk_adjustment_set_value (
           GTK_ADJUSTMENT (fontsel->size_adj), 
