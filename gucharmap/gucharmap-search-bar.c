@@ -21,10 +21,8 @@
 #include <gtk/gtk.h>
 #include <stdlib.h>
 #include <string.h>
-#include "gucharmap-search-dialog.h"
+#include "gucharmap-search-bar.h"
 #include "gucharmap-window.h"
-
-#define GUCHARMAP_SEARCH_DIALOG_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), gucharmap_search_dialog_get_type (), GucharmapSearchDialogPrivate))
 
 #define I_(string) g_intern_static_string (string)
 
@@ -35,15 +33,9 @@ enum
   NUM_SIGNALS
 };
 
-static guint gucharmap_search_dialog_signals[NUM_SIGNALS];
+static guint gucharmap_search_bar_signals[NUM_SIGNALS];
 
-enum
-{
-  GUCHARMAP_RESPONSE_PREVIOUS,
-  GUCHARMAP_RESPONSE_NEXT
-};
-
-typedef struct _GucharmapSearchDialogPrivate GucharmapSearchDialogPrivate;
+typedef struct _GucharmapSearchBarPrivate GucharmapSearchBarPrivate;
 typedef struct _GucharmapSearchState GucharmapSearchState;
 
 struct _GucharmapSearchState
@@ -74,7 +66,7 @@ struct _GucharmapSearchState
   gint                    strings_checked;
 };
 
-struct _GucharmapSearchDialogPrivate
+struct _GucharmapSearchBarPrivate
 {
   GucharmapWindow       *guw;
   GtkWidget             *entry;
@@ -85,10 +77,7 @@ struct _GucharmapSearchDialogPrivate
   GtkWidget             *next_button;
 };
 
-static void gucharmap_search_dialog_class_init (GucharmapSearchDialogClass *klass);
-static void gucharmap_search_dialog_init       (GucharmapSearchDialog *dialog);
-
-G_DEFINE_TYPE (GucharmapSearchDialog, gucharmap_search_dialog, GTK_TYPE_DIALOG)
+G_DEFINE_TYPE_WITH_PRIVATE (GucharmapSearchBar, gucharmap_search_bar, GTK_TYPE_SEARCH_BAR)
 
 static const gchar *
 utf8_strcasestr (const gchar *haystack, 
@@ -125,12 +114,12 @@ utf8_strcasestr (const gchar *haystack,
 }
 
 static gboolean
-matches (GucharmapSearchDialog *search_dialog,
+matches (GucharmapSearchBar    *search_bar,
          gunichar               wc,
          const gchar           *search_string_nfd,
          const gboolean         annotations)
 {
-  GucharmapSearchDialogPrivate *priv = GUCHARMAP_SEARCH_DIALOG_GET_PRIVATE (search_dialog);
+  GucharmapSearchBarPrivate *priv = gucharmap_search_bar_get_instance_private (search_bar);
   const gchar *haystack; 
   const gchar **haystack_arr; 
   gchar *haystack_nfd;
@@ -377,9 +366,9 @@ quick_checks_after (GucharmapSearchState *search_state)
 }
 
 static gboolean
-idle_search (GucharmapSearchDialog *search_dialog)
+idle_search (GucharmapSearchBar *search_bar)
 {
-  GucharmapSearchDialogPrivate *priv = GUCHARMAP_SEARCH_DIALOG_GET_PRIVATE (search_dialog);
+  GucharmapSearchBarPrivate *priv = gucharmap_search_bar_get_instance_private (search_bar);
   gunichar wc;
   GTimer *timer;
 
@@ -409,7 +398,7 @@ idle_search (GucharmapSearchDialog *search_dialog)
 	}
 
       /* check for other matches */
-      if (matches (search_dialog, wc, priv->search_state->search_string_nfd, priv->search_state->annotations))
+      if (matches (search_bar, wc, priv->search_state->search_string_nfd, priv->search_state->annotations))
         {
           priv->search_state->found_index = priv->search_state->curr_index;
           g_timer_destroy (timer);
@@ -549,45 +538,24 @@ gucharmap_search_state_new (GucharmapCodepointList       *list,
 }
 
 static void
-information_dialog (GucharmapSearchDialog *search_dialog,
-                    const gchar           *message)
+search_completed (GucharmapSearchBar *search_bar)
 {
-  GucharmapSearchDialogPrivate *priv = GUCHARMAP_SEARCH_DIALOG_GET_PRIVATE (search_dialog);
-  GtkWidget *dialog;
-
-  dialog = gtk_message_dialog_new (gtk_widget_get_visible (GTK_WIDGET (search_dialog)) ?
-                                     GTK_WINDOW (search_dialog) :
-                                     GTK_WINDOW (priv->guw),
-                                   GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-                                   GTK_MESSAGE_INFO,
-                                   GTK_BUTTONS_OK,
-                                   "%s", message);
-  gtk_window_set_title (GTK_WINDOW (dialog), _("Information"));
-  gtk_window_set_icon_name (GTK_WINDOW (dialog), GUCHARMAP_ICON_NAME);
-  gtk_window_set_resizable (GTK_WINDOW (dialog), FALSE);
-  g_signal_connect (dialog, "response", G_CALLBACK (gtk_widget_destroy), NULL);
-
-  gtk_window_present (GTK_WINDOW (dialog));
-}
-
-static void
-search_completed (GucharmapSearchDialog *search_dialog)
-{
-  GucharmapSearchDialogPrivate *priv = GUCHARMAP_SEARCH_DIALOG_GET_PRIVATE (search_dialog);
+  GucharmapSearchBarPrivate *priv = gucharmap_search_bar_get_instance_private (search_bar);
   gunichar found_char = gucharmap_search_state_get_found_char (priv->search_state);
 
   priv->search_state->searching = FALSE;
 
-  g_signal_emit (search_dialog, gucharmap_search_dialog_signals[SEARCH_FINISH], 0, found_char);
+  g_signal_emit (search_bar, gucharmap_search_bar_signals[SEARCH_FINISH], 0, found_char);
 
   if (found_char == (gunichar)(-1))
     {
-      information_dialog (search_dialog, _("Not found."));
+      gtk_entry_set_icon_from_icon_name (GTK_ENTRY (priv->entry), GTK_ENTRY_ICON_PRIMARY, "face-uncertain-symbolic");
+
       gtk_widget_set_sensitive (priv->prev_button, FALSE);
       gtk_widget_set_sensitive (priv->next_button, FALSE);
     }
 
-  gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (search_dialog)), NULL);
+  gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (search_bar)), NULL);
 }
 
 static gboolean
@@ -604,10 +572,10 @@ _entry_is_empty (GtkEntry *entry)
 }
 
 static void
-_gucharmap_search_dialog_fire_search (GucharmapSearchDialog *search_dialog,
-                                      GucharmapDirection     direction)
+gucharmap_search_bar_fire_search (GucharmapSearchBar  *search_bar,
+                                  GucharmapDirection   direction)
 {
-  GucharmapSearchDialogPrivate *priv = GUCHARMAP_SEARCH_DIALOG_GET_PRIVATE (search_dialog);
+  GucharmapSearchBarPrivate *priv = gucharmap_search_bar_get_instance_private (search_bar);
   GucharmapCodepointList *list;
   gunichar start_char;
   gint start_index;
@@ -616,8 +584,8 @@ _gucharmap_search_dialog_fire_search (GucharmapSearchDialog *search_dialog,
   if (priv->search_state && priv->search_state->searching) /* Already searching */
     return;
 
-  cursor = gdk_cursor_new_for_display (gtk_widget_get_display (GTK_WIDGET (search_dialog)), GDK_WATCH);
-  gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (search_dialog)), cursor);
+  cursor = gdk_cursor_new_for_display (gtk_widget_get_display (GTK_WIDGET (search_bar)), GDK_WATCH);
+  gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (search_bar)), cursor);
   g_object_unref (cursor);
 
   list = gucharmap_charmap_get_book_codepoint_list (priv->guw->charmap);
@@ -627,8 +595,8 @@ _gucharmap_search_dialog_fire_search (GucharmapSearchDialog *search_dialog,
   if (priv->search_state == NULL
       || list != priv->search_state->list
       || strcmp (priv->search_state->search_string, gtk_entry_get_text (GTK_ENTRY (priv->entry))) != 0
-      || priv->search_state->whole_word != gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (priv->whole_word_option))
-      || priv->search_state->annotations != gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (priv->annotations_option)) )
+      /* || priv->search_state->whole_word != gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (priv->whole_word_option))
+         || priv->search_state->annotations != gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (priv->annotations_option)) */)
     {
       if (priv->search_state)
         gucharmap_search_state_free (priv->search_state);
@@ -636,9 +604,10 @@ _gucharmap_search_dialog_fire_search (GucharmapSearchDialog *search_dialog,
       start_char = gucharmap_charmap_get_active_character (priv->guw->charmap);
       start_index = gucharmap_codepoint_list_get_index (list, start_char);
       priv->search_state = gucharmap_search_state_new (list, gtk_entry_get_text (GTK_ENTRY (priv->entry)),
-			      start_index, direction,
-			      gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (priv->whole_word_option)),
-			      gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (priv->annotations_option)) );
+                                                       start_index, direction,
+                                                       /* gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (priv->whole_word_option)),
+                                                          gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (priv->annotations_option))*/
+                                                       FALSE, TRUE);
     }
   else
     {
@@ -651,131 +620,80 @@ _gucharmap_search_dialog_fire_search (GucharmapSearchDialog *search_dialog,
   priv->search_state->searching = TRUE;
   priv->search_state->strings_checked = 0;
 
-  g_idle_add_full (G_PRIORITY_DEFAULT_IDLE, (GSourceFunc) idle_search, search_dialog, (GDestroyNotify) search_completed);
-  g_signal_emit (search_dialog, gucharmap_search_dialog_signals[SEARCH_START], 0);
+  g_idle_add_full (G_PRIORITY_DEFAULT_IDLE, (GSourceFunc) idle_search, search_bar, (GDestroyNotify) search_completed);
+  g_signal_emit (search_bar, gucharmap_search_bar_signals[SEARCH_START], 0);
 
   g_object_unref (list);
 }
 
 void
-gucharmap_search_dialog_start_search (GucharmapSearchDialog *search_dialog,
-                                      GucharmapDirection     direction)
+gucharmap_search_bar_start_search (GucharmapSearchBar *search_bar,
+                                   GucharmapDirection  direction)
 {
-  GucharmapSearchDialogPrivate *priv = GUCHARMAP_SEARCH_DIALOG_GET_PRIVATE (search_dialog);
+  GucharmapSearchBarPrivate *priv = gucharmap_search_bar_get_instance_private (search_bar);
 
   if (priv->search_state != NULL && !_entry_is_empty (GTK_ENTRY (priv->entry)))
-    _gucharmap_search_dialog_fire_search (search_dialog, direction);
+    gucharmap_search_bar_fire_search (search_bar, direction);
   else
-    gtk_window_present (GTK_WINDOW (search_dialog));
+    gtk_search_bar_set_search_mode (GTK_SEARCH_BAR (search_bar), TRUE);
 }
 
 static void
-search_find_response (GtkDialog *dialog,
-                      gint       response)
+prev_button_clicked_cb (GtkButton *button,
+                        gpointer   data)
 {
-  GucharmapSearchDialog *search_dialog = GUCHARMAP_SEARCH_DIALOG (dialog);
-  GucharmapSearchDialogPrivate *priv = GUCHARMAP_SEARCH_DIALOG_GET_PRIVATE (search_dialog);
+  GucharmapSearchBar *search_bar = GUCHARMAP_SEARCH_BAR (data);
+  GucharmapSearchBarPrivate *priv = gucharmap_search_bar_get_instance_private (search_bar);
 
-  switch (response)
-    {
-      case GUCHARMAP_RESPONSE_PREVIOUS:
-        _gucharmap_search_dialog_fire_search (search_dialog, GUCHARMAP_DIRECTION_BACKWARD);
-        break;
-
-      case GUCHARMAP_RESPONSE_NEXT:
-        _gucharmap_search_dialog_fire_search (search_dialog, GUCHARMAP_DIRECTION_FORWARD);
-        break;
-
-      default:
-        gtk_widget_hide (GTK_WIDGET (search_dialog));
-        break;
-    }
+  gucharmap_search_bar_fire_search (search_bar, GUCHARMAP_DIRECTION_BACKWARD);
 
   gtk_editable_select_region (GTK_EDITABLE (priv->entry), 0, -1);
 }
 
 static void
-entry_changed (GObject               *object,
-               GucharmapSearchDialog *search_dialog)
+next_button_clicked_cb (GtkButton *button,
+                        gpointer   data)
 {
-  GucharmapSearchDialogPrivate *priv = GUCHARMAP_SEARCH_DIALOG_GET_PRIVATE (search_dialog);
+  GucharmapSearchBar *search_bar = GUCHARMAP_SEARCH_BAR (data);
+  GucharmapSearchBarPrivate *priv = gucharmap_search_bar_get_instance_private (search_bar);
+
+  gucharmap_search_bar_fire_search (search_bar, GUCHARMAP_DIRECTION_FORWARD);
+
+  gtk_editable_select_region (GTK_EDITABLE (priv->entry), 0, -1);
+}
+
+static void
+entry_activate_cb (GtkEntry *entry,
+                   gpointer  data)
+{
+  GucharmapSearchBar *search_bar = GUCHARMAP_SEARCH_BAR (data);
+
+  gucharmap_search_bar_fire_search (search_bar, GUCHARMAP_DIRECTION_FORWARD);
+
+  gtk_editable_select_region (GTK_EDITABLE (entry), 0, -1);
+}
+
+static void
+entry_changed (GObject            *object,
+               GucharmapSearchBar *search_bar)
+{
+  GucharmapSearchBarPrivate *priv = gucharmap_search_bar_get_instance_private (search_bar);
   gboolean is_empty;
+  gtk_entry_set_icon_from_icon_name (GTK_ENTRY (priv->entry), GTK_ENTRY_ICON_PRIMARY, "edit-find-symbolic");
 
   is_empty = _entry_is_empty (GTK_ENTRY (priv->entry));
-      
+
   gtk_widget_set_sensitive (priv->prev_button, !is_empty);
   gtk_widget_set_sensitive (priv->next_button, !is_empty);
 }
 
-static void 
-set_button_stock_image_and_label (GtkButton *button,
-                                  gchar     *stock_id,
-                                  gchar     *mnemonic)
-{
-  GtkWidget *image;
-
-  image = gtk_image_new_from_stock (stock_id, GTK_ICON_SIZE_BUTTON);
-  gtk_button_set_image (button, image);
-  gtk_button_set_label (button, mnemonic);
-  gtk_button_set_use_underline (button, TRUE);
-}
-
 static void
-gucharmap_search_dialog_init (GucharmapSearchDialog *search_dialog)
+gucharmap_search_bar_init (GucharmapSearchBar *search_bar)
 {
-  GucharmapSearchDialogPrivate *priv = GUCHARMAP_SEARCH_DIALOG_GET_PRIVATE (search_dialog);
-  GtkWidget *grid, *label, *content_area;
+  GucharmapSearchBarPrivate *priv = gucharmap_search_bar_get_instance_private (search_bar);
 
-  content_area = gtk_dialog_get_content_area (GTK_DIALOG (search_dialog));
-
-  /* follow hig guidelines */
-  gtk_window_set_title (GTK_WINDOW (search_dialog), _("Find"));
-  gtk_container_set_border_width (GTK_CONTAINER (search_dialog), 6);
-  gtk_window_set_destroy_with_parent (GTK_WINDOW (search_dialog), TRUE);
-  gtk_box_set_spacing (GTK_BOX (content_area), 12);
-  gtk_window_set_resizable (GTK_WINDOW (search_dialog), FALSE);
-
-  g_signal_connect (search_dialog, "delete-event", G_CALLBACK (gtk_widget_hide_on_delete), NULL);
-
-  /* add buttons */
-  gtk_dialog_add_button (GTK_DIALOG (search_dialog), GTK_STOCK_CLOSE, GTK_RESPONSE_CLOSE);
-
-  priv->prev_button = gtk_button_new ();
-  gtk_widget_set_can_default (priv->prev_button, TRUE);
-  set_button_stock_image_and_label (GTK_BUTTON (priv->prev_button), GTK_STOCK_GO_BACK, _("_Previous"));
-  gtk_dialog_add_action_widget (GTK_DIALOG (search_dialog), priv->prev_button, GUCHARMAP_RESPONSE_PREVIOUS);
-  gtk_widget_show (priv->prev_button);
-
-  priv->next_button = gtk_button_new ();
-  gtk_widget_set_can_default (priv->next_button, TRUE);
-  gtk_widget_show (priv->next_button);
-  set_button_stock_image_and_label (GTK_BUTTON (priv->next_button), GTK_STOCK_GO_FORWARD, _("_Next"));
-  gtk_dialog_add_action_widget (GTK_DIALOG (search_dialog), priv->next_button, GUCHARMAP_RESPONSE_NEXT);
-
-  gtk_dialog_set_default_response (GTK_DIALOG (search_dialog), GUCHARMAP_RESPONSE_NEXT);
-  gtk_dialog_set_alternative_button_order (GTK_DIALOG (search_dialog),
-                                           GUCHARMAP_RESPONSE_PREVIOUS,
-                                           GUCHARMAP_RESPONSE_NEXT,
-                                           GTK_RESPONSE_CLOSE,
-                                           -1);
-
-  grid = gtk_grid_new ();
-  gtk_grid_set_column_spacing (GTK_GRID (grid), 12);
-  gtk_widget_show (grid);
-  gtk_container_set_border_width (GTK_CONTAINER (grid), 6);
-  gtk_box_pack_start (GTK_BOX (content_area), grid, FALSE, FALSE, 0);
-
-  label = gtk_label_new_with_mnemonic (_("_Search:"));
-  gtk_widget_show (label);
-  gtk_grid_attach (GTK_GRID (grid), label, 0, 0, 1, 1);
-
-  priv->entry = gtk_entry_new ();
-  gtk_widget_show (priv->entry);
-  gtk_widget_set_hexpand (priv->entry, TRUE);
-  gtk_entry_set_activates_default (GTK_ENTRY (priv->entry), TRUE);
-  gtk_grid_attach (GTK_GRID (grid), priv->entry, 1, 0, 1, 1);
-  g_signal_connect (priv->entry, "changed", G_CALLBACK (entry_changed), search_dialog);
-
+  gtk_widget_init_template (GTK_WIDGET (search_bar));
+  /*
   priv->whole_word_option = gtk_check_button_new_with_mnemonic (_("Match _whole word"));
   gtk_widget_show (priv->whole_word_option);
   gtk_box_pack_start (GTK_BOX (content_area), priv->whole_word_option, FALSE, FALSE, 0);
@@ -787,6 +705,11 @@ gucharmap_search_dialog_init (GucharmapSearchDialog *search_dialog)
   g_signal_connect (priv->annotations_option, "toggled", G_CALLBACK (entry_changed), search_dialog);
 
   gtk_label_set_mnemonic_widget (GTK_LABEL (label), priv->entry);
+  */
+
+  g_signal_connect (priv->entry, "changed", G_CALLBACK (entry_changed), search_bar);
+
+  gtk_search_bar_connect_entry (GTK_SEARCH_BAR (search_bar), GTK_ENTRY (priv->entry));
 
   /* since the entry is empty */
   gtk_widget_set_sensitive (priv->prev_button, FALSE);
@@ -795,78 +718,57 @@ gucharmap_search_dialog_init (GucharmapSearchDialog *search_dialog)
   priv->search_state = NULL;
   priv->guw = NULL;
 
-  g_signal_connect (GTK_DIALOG (search_dialog), "response", G_CALLBACK (search_find_response), NULL);
+  g_signal_connect (priv->prev_button, "clicked", G_CALLBACK (prev_button_clicked_cb), search_bar);
+  g_signal_connect (priv->next_button, "clicked", G_CALLBACK (next_button_clicked_cb), search_bar);
+  g_signal_connect (priv->entry, "activate", G_CALLBACK (entry_activate_cb), search_bar);
 }
 
 static void 
-gucharmap_search_dialog_finalize (GObject *object)
+gucharmap_search_bar_finalize (GObject *object)
 {
-  GucharmapSearchDialog *search_dialog = GUCHARMAP_SEARCH_DIALOG (object);
-  GucharmapSearchDialogPrivate *priv = GUCHARMAP_SEARCH_DIALOG_GET_PRIVATE (search_dialog);
+  GucharmapSearchBar *search_bar = GUCHARMAP_SEARCH_BAR (object);
+  GucharmapSearchBarPrivate *priv = gucharmap_search_bar_get_instance_private (search_bar);
 
   if (priv->search_state)
     gucharmap_search_state_free (priv->search_state);
 
-  G_OBJECT_CLASS (gucharmap_search_dialog_parent_class)->finalize (object);
+  G_OBJECT_CLASS (gucharmap_search_bar_parent_class)->finalize (object);
 }
 
 static void
-gucharmap_search_dialog_class_init (GucharmapSearchDialogClass *clazz)
+gucharmap_search_bar_class_init (GucharmapSearchBarClass *klass)
 {
-  g_type_class_add_private (clazz, sizeof (GucharmapSearchDialogPrivate));
+  GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
+  GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
-  G_OBJECT_CLASS (clazz)->finalize = gucharmap_search_dialog_finalize;
+  gobject_class->finalize = gucharmap_search_bar_finalize;
 
-  clazz->search_start = NULL;
-  clazz->search_finish = NULL;
+  klass->search_start = NULL;
+  klass->search_finish = NULL;
 
-  gucharmap_search_dialog_signals[SEARCH_START] =
-      g_signal_new (I_("search-start"), gucharmap_search_dialog_get_type (), G_SIGNAL_RUN_FIRST,
-                    G_STRUCT_OFFSET (GucharmapSearchDialogClass, search_start), NULL, NULL, 
+  gucharmap_search_bar_signals[SEARCH_START] =
+      g_signal_new (I_("search-start"), GUCHARMAP_TYPE_SEARCH_BAR, G_SIGNAL_RUN_FIRST,
+                    G_STRUCT_OFFSET (GucharmapSearchBarClass, search_start), NULL, NULL,
                     g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
-  gucharmap_search_dialog_signals[SEARCH_FINISH] =
-      g_signal_new (I_("search-finish"), gucharmap_search_dialog_get_type (), G_SIGNAL_RUN_FIRST, 
-                    G_STRUCT_OFFSET (GucharmapSearchDialogClass, search_finish), NULL, NULL, 
+  gucharmap_search_bar_signals[SEARCH_FINISH] =
+      g_signal_new (I_("search-finish"), GUCHARMAP_TYPE_SEARCH_BAR, G_SIGNAL_RUN_FIRST,
+                    G_STRUCT_OFFSET (GucharmapSearchBarClass, search_finish), NULL, NULL,
                     g_cclosure_marshal_VOID__UINT, G_TYPE_NONE, 1, G_TYPE_UINT);
+
+  gtk_widget_class_set_template_from_resource (widget_class,
+                                               "/org/gnome/charmap/ui/searchbar.ui");
+  gtk_widget_class_bind_template_child_private (widget_class, GucharmapSearchBar, entry);
+  gtk_widget_class_bind_template_child_private (widget_class, GucharmapSearchBar, prev_button);
+  gtk_widget_class_bind_template_child_private (widget_class, GucharmapSearchBar, next_button);
 }
 
 GtkWidget *
-gucharmap_search_dialog_new (GucharmapWindow *guw)
+gucharmap_search_bar_new (GucharmapWindow *guw)
 {
-  GucharmapSearchDialog *search_dialog = g_object_new (gucharmap_search_dialog_get_type (), NULL);
-  GucharmapSearchDialogPrivate *priv = GUCHARMAP_SEARCH_DIALOG_GET_PRIVATE (search_dialog);
+  GucharmapSearchBar *search_bar = g_object_new (GUCHARMAP_TYPE_SEARCH_BAR, NULL);
+  GucharmapSearchBarPrivate *priv = gucharmap_search_bar_get_instance_private (search_bar);
 
   priv->guw = guw;
 
-  gtk_window_set_transient_for (GTK_WINDOW (search_dialog), GTK_WINDOW (guw));
-
-  if (guw)
-    gtk_window_set_icon (GTK_WINDOW (search_dialog), gtk_window_get_icon (GTK_WINDOW (guw)));
-
-  return GTK_WIDGET (search_dialog);
-}
-
-void
-gucharmap_search_dialog_present (GucharmapSearchDialog *search_dialog)
-{
-  gtk_widget_grab_focus (GUCHARMAP_SEARCH_DIALOG_GET_PRIVATE (search_dialog)->entry);
-  gtk_window_present (GTK_WINDOW (search_dialog));
-}
-
-gdouble
-gucharmap_search_dialog_get_completed (GucharmapSearchDialog *search_dialog)
-{
-  GucharmapSearchDialogPrivate *priv = GUCHARMAP_SEARCH_DIALOG_GET_PRIVATE (search_dialog);
-
-  if (priv->search_state == NULL || !priv->search_state->searching)
-    return -1.0;
-  else
-    {
-#if ENABLE_UNIHAN
-      gdouble total = gucharmap_get_unicode_data_name_count () + gucharmap_get_unihan_count ();
-#else
-      gdouble total = gucharmap_get_unicode_data_name_count ();
-#endif
-      return (gdouble) priv->search_state->strings_checked / total;
-    }
+  return GTK_WIDGET (search_bar);
 }

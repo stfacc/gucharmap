@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <!-- interface-requires gtk+ 3.10 -->
+  <template class="GucharmapSearchBar" parent="GtkSearchBar">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <child>
+      <object class="GtkBox" id="search_box">
+        <property name="visible">True</property>
+        <property name="orientation">horizontal</property>
+        <style>
+          <class name="linked"/>
+        </style>
+        <child>
+          <object class="GtkSearchEntry" id="entry">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="width-request">300</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkButton" id="prev_button">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <style>
+              <class name="raised"/>
+            </style>
+            <child>
+              <object class="GtkImage" id="go_up_image">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="icon_size">1</property>
+                <property name="icon_name">go-up-symbolic</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkButton" id="next_button">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <style>
+              <class name="raised"/>
+            </style>
+            <child>
+              <object class="GtkImage" id="go_down_image">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="icon_size">1</property>
+                <property name="icon_name">go-down-symbolic</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

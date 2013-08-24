@@ -47,7 +47,7 @@ struct _GucharmapWindow
   GtkWidget *fontsel;
   GtkWidget *text_to_copy_entry;
 
-  GtkWidget *search_dialog; /* takes care of all aspects of searching */
+  GtkWidget *search_bar; /* takes care of all aspects of searching */
 
   guint save_last_char_idle_id;
 

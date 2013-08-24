@@ -125,8 +125,8 @@ gucharmap_SOURCES = \
 	gucharmap-mini-fontsel.h \
 	gucharmap-print-operation.c \
 	gucharmap-print-operation.h \
-	gucharmap-search-dialog.c \
-	gucharmap-search-dialog.h \
+	gucharmap-search-bar.c \
+	gucharmap-search-bar.h \
 	gucharmap-settings.c \
 	gucharmap-settings.h \
 	gucharmap-window.c \

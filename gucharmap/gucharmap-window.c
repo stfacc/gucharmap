@@ -27,7 +27,7 @@
 #include <gtk/gtk.h>
 
 #include "gucharmap-print-operation.h"
-#include "gucharmap-search-dialog.h"
+#include "gucharmap-search-bar.h"
 #include "gucharmap-settings.h"
 #include "gucharmap-window.h"
 
@@ -38,6 +38,7 @@
 typedef struct
 {
   GtkWidget *header_bar;
+  GtkWidget *search_button;
   GtkWidget *font_sel_button;
   GtkWidget *reset_font_button;
   GtkWidget *grid;
@@ -160,8 +161,8 @@ status_message (GtkWidget       *widget,
 }
 
 static void
-search_start (GucharmapSearchDialog *search_dialog,
-              GucharmapWindow       *guw)
+search_start (GucharmapSearchBar *search_bar,
+              GucharmapWindow    *guw)
 {
   GdkCursor *cursor;
   GAction *action;
@@ -170,8 +171,6 @@ search_start (GucharmapSearchDialog *search_dialog,
   gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (guw)), cursor);
   g_object_unref (cursor);
 
-  action = g_action_map_lookup_action (G_ACTION_MAP (guw), "find");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), FALSE);
   action = g_action_map_lookup_action (G_ACTION_MAP (guw), "find-next");
   g_simple_action_set_enabled (G_SIMPLE_ACTION (action), FALSE);
   action = g_action_map_lookup_action (G_ACTION_MAP (guw), "find-previous");
@@ -179,9 +178,9 @@ search_start (GucharmapSearchDialog *search_dialog,
 }
 
 static void
-search_finish (GucharmapSearchDialog *search_dialog,
-               gunichar               found_char,
-               GucharmapWindow       *guw)
+search_finish (GucharmapSearchBar *search_bar,
+               gunichar            found_char,
+               GucharmapWindow    *guw)
 {
   GAction *action;
 
@@ -191,8 +190,6 @@ search_finish (GucharmapSearchDialog *search_dialog,
 
   gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (guw)), NULL);
 
-  action = g_action_map_lookup_action (G_ACTION_MAP (guw), "find");
-  g_simple_action_set_enabled (G_SIMPLE_ACTION (action), TRUE);
   action = g_action_map_lookup_action (G_ACTION_MAP (guw), "find-next");
   g_simple_action_set_enabled (G_SIMPLE_ACTION (action), TRUE);
   action = g_action_map_lookup_action (G_ACTION_MAP (guw), "find-previous");
@@ -201,21 +198,17 @@ search_finish (GucharmapSearchDialog *search_dialog,
 
 static void
 search_find (GSimpleAction *action,
-             GVariant      *parameter,
+             GVariant      *state,
              gpointer       data)
 {
   GucharmapWindow *guw = data;
 
   g_assert (GUCHARMAP_IS_WINDOW (guw));
 
-  if (guw->search_dialog == NULL)
-    {
-      guw->search_dialog = gucharmap_search_dialog_new (guw);
-      g_signal_connect (guw->search_dialog, "search-start", G_CALLBACK (search_start), guw);
-      g_signal_connect (guw->search_dialog, "search-finish", G_CALLBACK (search_finish), guw);
-    }
+  gtk_search_bar_set_search_mode (GTK_SEARCH_BAR (guw->search_bar),
+                                  g_variant_get_boolean (state));
 
-  gucharmap_search_dialog_present (GUCHARMAP_SEARCH_DIALOG (guw->search_dialog));
+  g_simple_action_set_state (action, state);
 }
 
 static void
@@ -225,10 +218,7 @@ search_find_next (GSimpleAction *action,
 {
   GucharmapWindow *guw = data;
 
-  if (guw->search_dialog)
-    gucharmap_search_dialog_start_search (GUCHARMAP_SEARCH_DIALOG (guw->search_dialog), GUCHARMAP_DIRECTION_FORWARD);
-  else
-    search_find (action, NULL, guw);
+  gucharmap_search_bar_start_search (GUCHARMAP_SEARCH_BAR (guw->search_bar), GUCHARMAP_DIRECTION_FORWARD);
 }
 
 static void
@@ -238,10 +228,7 @@ search_find_prev (GSimpleAction *action,
 {
   GucharmapWindow *guw = data;
 
-  if (guw->search_dialog)
-    gucharmap_search_dialog_start_search (GUCHARMAP_SEARCH_DIALOG (guw->search_dialog), GUCHARMAP_DIRECTION_BACKWARD);
-  else
-    search_find (action, NULL, guw);
+  gucharmap_search_bar_start_search (GUCHARMAP_SEARCH_BAR (guw->search_bar), GUCHARMAP_DIRECTION_BACKWARD);
 }
 
 #ifdef ENABLE_PRINTING
@@ -793,7 +780,7 @@ gucharmap_window_init (GucharmapWindow *guw)
     { "zoom-out", font_smaller, NULL, NULL, NULL },
     { "normal-size", font_default, NULL, NULL, NULL },
 
-    { "find", search_find, NULL, NULL, NULL },
+    { "find", toggle_action_activated, NULL, "false", search_find },
     { "find-next", search_find_next, NULL, NULL, NULL },
     { "find-previous", search_find_prev, NULL, NULL, NULL },
 
@@ -838,6 +825,15 @@ gucharmap_window_init (GucharmapWindow *guw)
 
   /* Now the widgets */
   grid = priv->grid;
+
+  guw->search_bar = gucharmap_search_bar_new (guw);
+  g_signal_connect (guw->search_bar, "search-start", G_CALLBACK (search_start), guw);
+  g_signal_connect (guw->search_bar, "search-finish", G_CALLBACK (search_finish), guw);
+  gtk_grid_attach (GTK_GRID (grid), guw->search_bar, 0, 0, 3, 1);
+
+  g_object_bind_property (priv->search_button, "active",
+                          guw->search_bar, "search-mode-enabled",
+                          G_BINDING_BIDIRECTIONAL);
 
   /* The font selector */
   guw->fontsel = gucharmap_mini_font_selection_new (guw);
@@ -971,6 +967,7 @@ gucharmap_window_class_init (GucharmapWindowClass *klass)
                                                "/org/gnome/charmap/ui/window.ui");
   gtk_widget_class_bind_template_child_private (widget_class, GucharmapWindow, grid);
   gtk_widget_class_bind_template_child_private (widget_class, GucharmapWindow, header_bar);
+  gtk_widget_class_bind_template_child_private (widget_class, GucharmapWindow, search_button);
   gtk_widget_class_bind_template_child_private (widget_class, GucharmapWindow, font_sel_button);
   gtk_widget_class_bind_template_child_private (widget_class, GucharmapWindow, reset_font_button);
 }
