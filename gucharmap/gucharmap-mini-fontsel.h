@@ -36,10 +36,10 @@ typedef struct _GucharmapMiniFontSelectionClass GucharmapMiniFontSelectionClass;
 
 struct _GucharmapMiniFontSelection
 {
-  GtkHBox parent;
+  GtkDialog parent;
 
   GtkListStore         *family_store;
-  GtkWidget            *family; /* combo box */
+  GtkWidget            *family; /* tree view */
   GtkWidget            *bold;   /* toggle button*/
   GtkWidget            *italic; /* toggle button*/
 
@@ -53,13 +53,13 @@ struct _GucharmapMiniFontSelection
 
 struct _GucharmapMiniFontSelectionClass
 {
-  GtkHBoxClass parent_class;
+  GtkDialogClass parent_class;
 };
 
 
 GType                  gucharmap_mini_font_selection_get_type         (void);
 
-GtkWidget *            gucharmap_mini_font_selection_new              (void);
+GtkWidget *            gucharmap_mini_font_selection_new              (GtkWindow *parent);
 
 void                   gucharmap_mini_font_selection_set_font_desc    (GucharmapMiniFontSelection *fontsel,
                                                                        PangoFontDescription       *font_desc);

@@ -50,12 +50,12 @@ static void gucharmap_mini_font_selection_class_init (GucharmapMiniFontSelection
 static void gucharmap_mini_font_selection_init       (GucharmapMiniFontSelection *fontsel);
 static void gucharmap_mini_font_selection_finalize   (GObject *object);
 
-G_DEFINE_TYPE (GucharmapMiniFontSelection, gucharmap_mini_font_selection, GTK_TYPE_HBOX)
+G_DEFINE_TYPE (GucharmapMiniFontSelection, gucharmap_mini_font_selection, GTK_TYPE_DIALOG)
 
 static void
-fill_font_families_combo (GucharmapMiniFontSelection *fontsel)
+fill_font_families (GucharmapMiniFontSelection *fontsel)
 {
-  GtkComboBox *combo = GTK_COMBO_BOX (fontsel->family);
+  GtkTreeView *tree_view = GTK_TREE_VIEW (fontsel->family);
   PangoFontFamily **families;
   int n_families, i;
 
@@ -84,21 +84,22 @@ fill_font_families_combo (GucharmapMiniFontSelection *fontsel)
                                         COL_FAMILIY,
                                         GTK_SORT_ASCENDING);
 
-  gtk_combo_box_set_model (combo, GTK_TREE_MODEL (fontsel->family_store));
+  gtk_tree_view_set_model (tree_view, GTK_TREE_MODEL (fontsel->family_store));
   g_object_unref (fontsel->family_store);
 }
 
 static void
-update_font_family_combo (GucharmapMiniFontSelection *fontsel)
+update_font_family_tree_view (GucharmapMiniFontSelection *fontsel)
 {
   GtkTreeModel *model = GTK_TREE_MODEL (fontsel->family_store);
+  GtkTreeSelection *selection = gtk_tree_view_get_selection (fontsel->family);
   GtkTreeIter iter;
   const char *font_family;
   gboolean found = FALSE;
 
   font_family = pango_font_description_get_family (fontsel->font_desc);
   if (!font_family || !font_family[0]) {
-    gtk_combo_box_set_active (GTK_COMBO_BOX (fontsel->family), -1);
+    gtk_tree_selection_unselect_all (selection);
     return;
   }
 
@@ -114,20 +115,26 @@ update_font_family_combo (GucharmapMiniFontSelection *fontsel)
   } while (!found && gtk_tree_model_iter_next (model, &iter));
 
   if (found) {
-    gtk_combo_box_set_active_iter (GTK_COMBO_BOX (fontsel->family), &iter);
+    GtkTreePath *path = gtk_tree_model_get_path (model, &iter);
+    gtk_tree_selection_select_iter (selection, &iter);
+    gtk_tree_view_scroll_to_cell (fontsel->family,
+                                  path,
+                                  NULL,
+                                  FALSE, 0, 0);
+    gtk_tree_path_free (path);
   } else {
-    gtk_combo_box_set_active (GTK_COMBO_BOX (fontsel->family), -1);
+    gtk_tree_selection_unselect_all (selection);
   }
 }
 
 static void
-family_combo_changed (GtkComboBox *combo,
-                      GucharmapMiniFontSelection *fontsel)
+family_changed (GtkTreeSelection *selection,
+                GucharmapMiniFontSelection *fontsel)
 {
   GtkTreeIter iter;
   char *family;
 
-  if (!gtk_combo_box_get_active_iter (combo, &iter))
+  if (!gtk_tree_selection_get_selected (selection, NULL, &iter))
     return;
 
   gtk_tree_model_get (GTK_TREE_MODEL (fontsel->family_store),
@@ -267,6 +274,8 @@ static void
 gucharmap_mini_font_selection_init (GucharmapMiniFontSelection *fontsel)
 {
   GtkCellRenderer *renderer;
+  GtkTreeViewColumn *column;
+  GtkWidget *content, *scrolled;
   GtkStyle *style;
   AtkObject *accessib;
 
@@ -281,15 +290,14 @@ gucharmap_mini_font_selection_init (GucharmapMiniFontSelection *fontsel)
   accessib = gtk_widget_get_accessible (GTK_WIDGET (fontsel));
   atk_object_set_name (accessib, _("Font"));
 
-  gtk_box_set_spacing (GTK_BOX (fontsel), 6);
-
-  fontsel->family = gtk_combo_box_new ();
+  fontsel->family = gtk_tree_view_new ();
 
   renderer = gtk_cell_renderer_text_new ();
-  gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (fontsel->family), renderer, TRUE);
-  gtk_cell_layout_set_attributes (GTK_CELL_LAYOUT (fontsel->family), renderer,
-                                  "text", COL_FAMILIY,
-                                  NULL);
+  column = gtk_tree_view_column_new_with_attributes ("Font Family",
+                                                     renderer,
+                                                     "text", COL_FAMILIY,
+                                                     NULL);
+  gtk_tree_view_append_column (GTK_TREE_VIEW (fontsel->family), column);
   gtk_widget_show (fontsel->family);
   accessib = gtk_widget_get_accessible (fontsel->family);
   atk_object_set_name (accessib, _("Font Family"));
@@ -314,30 +322,31 @@ gucharmap_mini_font_selection_init (GucharmapMiniFontSelection *fontsel)
   g_signal_connect (fontsel->size_adj, "value-changed",
                     G_CALLBACK (font_size_changed), fontsel);
 
-  fill_font_families_combo (fontsel);
+  fill_font_families (fontsel);
 
-  gtk_combo_box_set_active (GTK_COMBO_BOX (fontsel->family), -1);
-  g_signal_connect (fontsel->family, "changed",
-                    G_CALLBACK (family_combo_changed), fontsel);
+  scrolled = gtk_scrolled_window_new (NULL, NULL);
+  gtk_container_add (GTK_CONTAINER (scrolled), fontsel->family);
 
-  gtk_box_pack_start (GTK_BOX (fontsel), fontsel->family, FALSE, FALSE, 0);
-  gtk_box_pack_start (GTK_BOX (fontsel), fontsel->bold, FALSE, FALSE, 0);
-  gtk_box_pack_start (GTK_BOX (fontsel), fontsel->italic, FALSE, FALSE, 0);
-  gtk_box_pack_start (GTK_BOX (fontsel), fontsel->size, FALSE, FALSE, 0);
-
-  gtk_combo_box_set_focus_on_click (GTK_COMBO_BOX (fontsel->family), FALSE);
-  gtk_button_set_focus_on_click (GTK_BUTTON (fontsel->bold), FALSE);
-  gtk_button_set_focus_on_click (GTK_BUTTON (fontsel->italic), FALSE);
+  content = gtk_dialog_get_content_area (GTK_DIALOG (fontsel));
+  gtk_box_pack_start (GTK_BOX (content), scrolled, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (content), fontsel->bold, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (content), fontsel->italic, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (content), fontsel->size, FALSE, FALSE, 0);
 
   gtk_container_set_border_width (GTK_CONTAINER (fontsel), 6);
 
-  gtk_widget_show_all (GTK_WIDGET (fontsel));
+  gtk_widget_show_all (GTK_WIDGET (content));
+
+  g_signal_connect (gtk_tree_view_get_selection (fontsel->family), "changed",
+                    G_CALLBACK (family_changed), fontsel);
 }
 
 GtkWidget *
-gucharmap_mini_font_selection_new (void)
+gucharmap_mini_font_selection_new (GtkWindow *parent)
 {
   return GTK_WIDGET (g_object_new (gucharmap_mini_font_selection_get_type (), 
+                                   "transient-for", parent,
+                                   "modal", TRUE,
                                    NULL));
 }
 
@@ -371,7 +380,7 @@ gucharmap_mini_font_selection_set_font_desc (GucharmapMiniFontSelection *fontsel
   
   fontsel->font_desc = new_font_desc;
   
-  update_font_family_combo (fontsel);
+  update_font_family_tree_view (fontsel);
     
   /* treat oblique and italic both as italic */
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (fontsel->italic), pango_font_description_get_style (fontsel->font_desc) == PANGO_STYLE_ITALIC || pango_font_description_get_style (fontsel->font_desc) == PANGO_STYLE_OBLIQUE);

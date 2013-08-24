@@ -304,6 +304,16 @@ close_window (GSimpleAction *action,
 }
 
 static void
+show_font_sel (GSimpleAction *action,
+               GVariant      *parameter,
+               gpointer       data)
+{
+  GucharmapWindow *guw = data;
+
+  gtk_widget_show (GTK_WIDGET (guw->fontsel));
+}
+
+static void
 font_bigger (GSimpleAction *action,
              GVariant      *parameter,
              gpointer       data)
@@ -745,6 +755,8 @@ gucharmap_window_init (GucharmapWindow *guw)
 #endif /* ENABLE_PRINTING */
     { "close", close_window, NULL, NULL, NULL },
 
+    { "show-font-sel", show_font_sel, NULL, NULL, NULL },
+
     { "zoom-in", font_bigger, NULL, NULL, NULL },
     { "zoom-out", font_smaller, NULL, NULL, NULL },
     { "normal-size", font_default, NULL, NULL, NULL },
@@ -796,9 +808,10 @@ gucharmap_window_init (GucharmapWindow *guw)
   grid = priv->grid;
 
   /* The font selector */
-  guw->fontsel = gucharmap_mini_font_selection_new ();
-  gtk_grid_attach (GTK_GRID (grid), guw->fontsel, 0, 1, 3, 1);
-  gtk_widget_show (GTK_WIDGET (guw->fontsel));
+  guw->fontsel = gucharmap_mini_font_selection_new (guw);
+  g_signal_connect (guw->fontsel, "delete-event",
+                    G_CALLBACK (gtk_widget_hide_on_delete),
+                    NULL);
 
   /* The charmap */
   guw->charmap = GUCHARMAP_CHARMAP (gucharmap_charmap_new ());
