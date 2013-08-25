@@ -121,6 +121,8 @@ noinst_PROGRAMS = gucharmap
 endif
 
 gucharmap_SOURCES = \
+	gucharmap-fontprops-dialog.c \
+	gucharmap-fontprops-dialog.h \
 	gucharmap-mini-fontsel.c \
 	gucharmap-mini-fontsel.h \
 	gucharmap-print-operation.c \

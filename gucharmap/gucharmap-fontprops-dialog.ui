@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.15.2 on Sun Aug 25 13:16:47 2013 -->
+<interface>
+  <!-- interface-requires gtk+ 3.10 -->
+  <template class="GucharmapFontpropsDialog" parent="GtkDialog">
+    <property name="can_focus">False</property>
+    <property name="default_width">450</property>
+    <property name="default_height">400</property>
+    <child type="titlebar">
+      <object class="GtkHeaderBar" id="header_bar">
+        <property name="visible">True</property>
+        <property name="title">Bella</property>
+        <child>
+          <object class="GtkToggleButton" id="see_also_button">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">See Also</property>
+          </object>
+          <packing>
+            <property name="pack-type">start</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="done_button">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Done</property>
+            <signal name="clicked" handler="gtk_widget_destroy" object="GucharmapFontpropsDialog" swapped="yes"/>
+            <style>
+              <class name="suggested-action"/>
+            </style>
+          </object>
+          <packing>
+            <property name="pack-type">end</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <child internal-child="vbox">
+      <object class="GtkBox" id="dialog-vbox1">
+        <property name="can_focus">False</property>
+        <child>
+          <object class="GtkLabel" id="label">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="copy_button">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Copy Character</property>
+            <property name="halign">center</property>
+            <signal name="clicked" handler="copy_button_clicked" object="GucharmapFontpropsDialog" swapped="yes"/>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">False</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox" id="unicode_label_box">
+            <property name="visible">True</property>
+            <property name="orientation">horizontal</property>
+            <property name="halign">center</property>
+            <property name="spacing">6</property>
+            <child>
+              <object class="GtkLabel" id="unicode_label">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label">Unicode</property>
+                <style>
+                  <class name="dim-label"/>
+                </style>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="unicode_code_label">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+              </packing>
+            </child>
+          </object> 
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

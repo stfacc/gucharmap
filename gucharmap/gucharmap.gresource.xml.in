@@ -21,5 +21,6 @@
     <file alias="ui/window.ui" preprocess="xml-stripblanks">gucharmap-window.ui</file>
     <file alias="ui/fontsel.ui" preprocess="xml-stripblanks">gucharmap-fontsel.ui</file>
     <file alias="ui/searchbar.ui" preprocess="xml-stripblanks">gucharmap-searchbar.ui</file>
+    <file alias="ui/fontprops-dialog.ui" preprocess="xml-stripblanks">gucharmap-fontprops-dialog.ui</file>
   </gresource>
 </gresources>

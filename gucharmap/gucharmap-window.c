@@ -26,6 +26,7 @@
 #include <glib/gi18n-lib.h>
 #include <gtk/gtk.h>
 
+#include "gucharmap-fontprops-dialog.h"
 #include "gucharmap-print-operation.h"
 #include "gucharmap-search-bar.h"
 #include "gucharmap-settings.h"
@@ -291,6 +292,24 @@ close_window (GSimpleAction *action,
   GtkWidget *widget = data;
 
   gtk_widget_destroy (widget);
+}
+
+static void
+show_font_properties (GSimpleAction *action,
+                      GVariant      *parameter,
+                      gpointer       data)
+{
+  GucharmapWindow *guw = data;
+  GucharmapChartable *chartable;
+  GtkDialog *dialog;
+  gunichar wc;
+
+  chartable = gucharmap_charmap_get_chartable (guw->charmap);
+  wc = gucharmap_chartable_get_active_character (chartable);
+
+  dialog = gucharmap_fontprops_dialog_new (guw, wc);
+
+  gtk_widget_show (dialog);
 }
 
 static void
@@ -776,6 +795,8 @@ gucharmap_window_init (GucharmapWindow *guw)
     { "show-font-sel", show_font_sel, NULL, NULL, NULL },
     { "reset-font", reset_font, NULL, NULL, NULL },
 
+    { "show-font-properties", show_font_properties, NULL, NULL, NULL },
+
     { "zoom-in", font_bigger, NULL, NULL, NULL },
     { "zoom-out", font_smaller, NULL, NULL, NULL },
     { "normal-size", font_default, NULL, NULL, NULL },
@@ -853,6 +874,7 @@ gucharmap_window_init (GucharmapWindow *guw)
   gtk_widget_show (GTK_WIDGET (guw->charmap));
 
   /* Text to copy entry + button */
+  /*
   label = gtk_label_new_with_mnemonic (_("_Text to copy:"));
   g_object_set (label, "margin", 6, NULL);
   gtk_grid_attach (GTK_GRID (grid), label, 0, 3, 1, 1);
@@ -876,10 +898,12 @@ gucharmap_window_init (GucharmapWindow *guw)
 
   gtk_grid_attach (GTK_GRID (grid), guw->text_to_copy_entry, 1, 3, 1, 1);
   gtk_widget_show (guw->text_to_copy_entry);
+  */
 
   /* FIXMEchpe!! */
   chartable = gucharmap_charmap_get_chartable (guw->charmap);
-  g_signal_connect (chartable, "activate", G_CALLBACK (insert_character_in_text_to_copy), guw);
+  g_signal_connect (chartable, "activate",
+                    G_CALLBACK (show_font_properties), guw);
 
   /* Finally the statusbar */
   guw->status = gtk_statusbar_new ();
