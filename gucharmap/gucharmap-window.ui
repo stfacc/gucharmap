@@ -24,22 +24,6 @@
           </packing>
         </child>
         <child>
-          <object class="GtkButton" id="font_properties_button">
-            <property name="visible">True</property>
-            <property name="action_name">win.show-font-properties</property>
-            <child>
-              <object class="GtkImage" id="font_properties_image">
-                <property name="visible">True</property>
-                <property name="icon-name">document-properties-symbolic</property>
-                <property name="icon-size">1</property>
-              </object>
-            </child>
-          </object>
-          <packing>
-            <property name="pack-type">end</property>
-          </packing>
-        </child>
-        <child>
           <object class="GtkButton" id="font_sel_button">
             <property name="visible">True</property>
             <property name="action_name">win.show-font-sel</property>

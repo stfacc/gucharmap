@@ -1188,12 +1188,13 @@ gucharmap_chartable_button_press (GtkWidget *widget,
     }
 
   /* double-click */
-  if (event->button == 1 && event->type == GDK_2BUTTON_PRESS)
-    {
-      g_signal_emit (chartable, signals[ACTIVATE], 0);
-    }
+  //if (event->button == 1 && event->type == GDK_2BUTTON_PRESS)
+  //  {
+  //    g_signal_emit (chartable, signals[ACTIVATE], 0);
+  //  }
   /* single-click */ 
-  else if (event->button == 1 && event->type == GDK_BUTTON_PRESS) 
+  //else 
+  if (event->button == 1 && event->type == GDK_BUTTON_PRESS) 
     {
       gucharmap_chartable_set_active_cell (chartable, get_cell_at_xy (chartable, event->x, event->y));
     }
@@ -1209,6 +1210,8 @@ gucharmap_chartable_button_press (GtkWidget *widget,
   return TRUE;
 }
 
+static gboolean was_dragging = FALSE;
+
 static gboolean
 gucharmap_chartable_button_release (GtkWidget *widget,
                                     GdkEventButton *event)
@@ -1217,11 +1220,16 @@ gucharmap_chartable_button_release (GtkWidget *widget,
   gboolean (* button_press_event) (GtkWidget *, GdkEventButton *) =
     GTK_WIDGET_CLASS (gucharmap_chartable_parent_class)->button_release_event;
 
-  if (event->button == 3)
+  if (event->button == 1 && !was_dragging)
+    {
+      g_signal_emit (chartable, signals[ACTIVATE], 0);
+      was_dragging = FALSE;
+    }
+  else if (event->button == 3)
     gucharmap_chartable_hide_zoom (chartable);
 
-  if (button_press_event)
-    return button_press_event (widget, event);
+  //if (button_press_event)
+  //  return button_press_event (widget, event);
   return FALSE;
 }
 
@@ -1248,6 +1256,23 @@ gucharmap_chartable_drag_begin (GtkWidget *widget,
   cairo_surface_destroy (drag_surface);
 
   /* no need to chain up */
+}
+
+static void
+gucharmap_chartable_drag_end (GtkWidget *widget,
+                              GdkDragContext *context)
+{
+  //GucharmapChartable *chartable = GUCHARMAP_CHARTABLE (widget);
+  was_dragging = FALSE;
+}
+
+static void
+gucharmap_chartable_drag_failed (GtkWidget *widget,
+                                 GdkDragContext *context,
+                                 GtkDragResult result)
+{
+  //GucharmapChartable *chartable = GUCHARMAP_CHARTABLE (widget);
+  was_dragging = FALSE;
 }
 
 static void
@@ -1476,6 +1501,7 @@ gucharmap_chartable_motion_notify (GtkWidget *widget,
     {
       gtk_drag_begin (widget, priv->target_list,
                       GDK_ACTION_COPY, 1, (GdkEvent *) event);
+      was_dragging = TRUE;
     }
 
   if ((event->state & GDK_BUTTON3_MASK) != 0 &&
@@ -2078,6 +2104,8 @@ gucharmap_chartable_class_init (GucharmapChartableClass *klass)
   object_class->set_property = gucharmap_chartable_set_property;
 
   widget_class->drag_begin = gucharmap_chartable_drag_begin;
+  widget_class->drag_end = gucharmap_chartable_drag_end;
+  widget_class->drag_failed = gucharmap_chartable_drag_failed;
   widget_class->drag_data_get = gucharmap_chartable_drag_data_get;
   widget_class->drag_data_received = gucharmap_chartable_drag_data_received;
   widget_class->button_press_event = gucharmap_chartable_button_press;
