@@ -1095,6 +1095,7 @@ gucharmap_charmap_init (GucharmapCharmap *charmap)
 
   /* Right pane */
   priv->notebook = gtk_notebook_new ();
+  gtk_notebook_set_show_tabs (priv->notebook, FALSE);
 
   /* Chartable page */
   scrolled_window = gtk_scrolled_window_new (NULL, NULL);

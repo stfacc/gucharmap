@@ -908,7 +908,7 @@ gucharmap_window_init (GucharmapWindow *guw)
   /* Finally the statusbar */
   guw->status = gtk_statusbar_new ();
   gtk_grid_attach (GTK_GRID (grid), guw->status, 0, 4, 3, 1);
-  gtk_widget_show (guw->status);
+  //gtk_widget_show (guw->status);
   g_signal_connect (guw->status, "realize", G_CALLBACK (status_realize), guw);
 
   g_signal_connect (guw->charmap, "status-message", G_CALLBACK (status_message), guw);
