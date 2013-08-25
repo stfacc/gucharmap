@@ -1000,6 +1000,7 @@ draw_borders (GucharmapChartable *chartable,
   GtkStyle *style;
   gint x, y, col, row;
   GtkAllocation widget_allocation;
+  gint height, row_h, baseline, offset;
 
   gtk_widget_get_allocation (widget, &widget_allocation);
   allocation = &widget_allocation;
@@ -1015,6 +1016,7 @@ draw_borders (GucharmapChartable *chartable,
   cairo_set_line_width (cr, 1); /* FIXME themeable? */
   cairo_set_line_cap (cr, CAIRO_LINE_CAP_SQUARE);
 
+#if 0
   /* vertical lines */
   cairo_move_to (cr, .5, .5);
   cairo_line_to (cr, .5, allocation->height - .5);
@@ -1025,12 +1027,20 @@ draw_borders (GucharmapChartable *chartable,
       cairo_move_to (cr, x + .5, .5);
       cairo_line_to (cr, x + .5, allocation->height - .5);
     }
+#endif
 
   /* horizontal lines */
   cairo_move_to (cr, .5, .5);
   cairo_line_to (cr, allocation->width - .5, .5);
 
-  for (row = 0, y = 0;  row < priv->rows;  row++)
+  pango_layout_set_text (priv->pango_layout, "a", -1);
+  pango_layout_get_pixel_size (priv->pango_layout, NULL, &height);
+  baseline = pango_layout_get_baseline (priv->pango_layout) / PANGO_SCALE;
+
+  row_h = _gucharmap_chartable_row_height (chartable, 0);
+  offset = (row_h - height) / 2.0 + baseline - row_h;
+
+  for (row = 0, y = offset;  row < priv->rows;  row++)
     {
       y += _gucharmap_chartable_row_height (chartable, row);
 
