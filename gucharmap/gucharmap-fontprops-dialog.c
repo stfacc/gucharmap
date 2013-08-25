@@ -5,9 +5,13 @@ typedef struct
   gunichar character;
   gchar ubuf[7];
 
-  GtkHeaderBar *header_bar;
-  GtkLabel     *label;
-  GtkLabel     *unicode_code_label;
+  GtkHeaderBar     *header_bar;
+  GtkToggleButton  *see_also_button;
+  GtkStack         *stack;
+  GtkLabel         *label;
+  GtkLabel         *unicode_code_label;
+  GtkTextView      *see_also_list;
+  GtkSizeGroup     *see_also_size_group;
 } GucharmapFontpropsDialogPrivate;
 
 G_DEFINE_TYPE_WITH_PRIVATE (GucharmapFontpropsDialog, gucharmap_fontprops_dialog, GTK_TYPE_DIALOG)
@@ -36,6 +40,49 @@ capitalize_string (const gchar *s)
 }
 
 static void
+populate_see_also_list (GucharmapFontpropsDialog *dialog, gunichar wc)
+{
+  GucharmapFontpropsDialogPrivate *priv = gucharmap_fontprops_dialog_get_instance_private (dialog);
+  gunichar *ucs;
+  gint i;
+
+  ucs = gucharmap_get_nameslist_exes (wc);
+
+  if (ucs != NULL)
+    {
+      g_clear_object (&priv->see_also_size_group);
+      priv->see_also_size_group = gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL);
+
+      for (i = 0; ucs[i] != (gunichar)(-1); i++)
+        {
+          gchar b[7];
+          gchar *str;
+          GtkWidget *box, *label;
+
+          box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+
+          b[g_unichar_to_utf8 (ucs[i], b)] = '\0';
+          str = g_strdup_printf ("<span size=\"50000\">%s</span>", b);
+          label = gtk_label_new (str);
+          g_free (str);
+          gtk_label_set_use_markup (GTK_LABEL (label), TRUE);
+          gtk_size_group_add_widget (priv->see_also_size_group, label);
+          gtk_box_pack_start (GTK_BOX (box), label, FALSE, TRUE, 0);
+
+          str = capitalize_string (gucharmap_get_unicode_name (ucs[i]));
+          label = gtk_label_new (str);
+          g_free (str);
+          gtk_box_pack_start (GTK_BOX (box), label, FALSE, TRUE, 0);
+
+          gtk_widget_show_all (box);
+          gtk_container_add (GTK_CONTAINER (priv->see_also_list), box);
+        }
+    }
+  else
+    gtk_widget_hide (GTK_WIDGET (priv->see_also_button));
+}
+
+static void
 set_character (GucharmapFontpropsDialog *dialog, gunichar wc)
 {
   GucharmapFontpropsDialogPrivate *priv = gucharmap_fontprops_dialog_get_instance_private (dialog);
@@ -57,6 +104,8 @@ set_character (GucharmapFontpropsDialog *dialog, gunichar wc)
   str = g_strdup_printf ("U+%4.4X", wc);
   gtk_label_set_text (priv->unicode_code_label, str);
   g_free (str);
+
+  populate_see_also_list (dialog, wc);
 }
 
 static void
@@ -107,6 +156,28 @@ copy_button_clicked (GucharmapFontpropsDialog *dialog)
 }
 
 static void
+see_also_button_clicked (GucharmapFontpropsDialog *dialog)
+{
+  GucharmapFontpropsDialogPrivate *priv = gucharmap_fontprops_dialog_get_instance_private (dialog);
+
+  if (gtk_toggle_button_get_active (priv->see_also_button))
+    gtk_stack_set_visible_child_name (priv->stack, "see_also");
+  else
+    gtk_stack_set_visible_child_name (priv->stack, "overview");
+}
+
+static void
+gucharmap_fontprops_dialog_finalize (GObject *object)
+{
+  GucharmapFontpropsDialog *dialog = GUCHARMAP_FONTPROPS_DIALOG (object);
+  GucharmapFontpropsDialogPrivate *priv = gucharmap_fontprops_dialog_get_instance_private (dialog);
+
+  g_clear_object (&priv->see_also_size_group);
+
+  G_OBJECT_CLASS (gucharmap_fontprops_dialog_parent_class)->finalize (object);
+}
+
+static void
 gucharmap_fontprops_dialog_init (GucharmapFontpropsDialog *dialog)
 {
   gtk_widget_init_template (GTK_WIDGET (dialog));
@@ -120,6 +191,7 @@ gucharmap_fontprops_dialog_class_init (GucharmapFontpropsDialogClass *klass)
 
   gobject_class->get_property = gucharmap_fontprops_dialog_get_property;
   gobject_class->set_property = gucharmap_fontprops_dialog_set_property;
+  gobject_class->finalize = gucharmap_fontprops_dialog_finalize;
 
   g_object_class_install_property (gobject_class,
                                    PROP_CHARACTER,
@@ -133,9 +205,13 @@ gucharmap_fontprops_dialog_class_init (GucharmapFontpropsDialogClass *klass)
                                                "/org/gnome/charmap/ui/fontprops-dialog.ui");
 
   gtk_widget_class_bind_template_child_private (widget_class, GucharmapFontpropsDialog, header_bar);
+  gtk_widget_class_bind_template_child_private (widget_class, GucharmapFontpropsDialog, see_also_button);
+  gtk_widget_class_bind_template_child_private (widget_class, GucharmapFontpropsDialog, stack);
   gtk_widget_class_bind_template_child_private (widget_class, GucharmapFontpropsDialog, label);
   gtk_widget_class_bind_template_child_private (widget_class, GucharmapFontpropsDialog, unicode_code_label);
+  gtk_widget_class_bind_template_child_private (widget_class, GucharmapFontpropsDialog, see_also_list);
 
+  gtk_widget_class_bind_template_callback (widget_class, see_also_button_clicked);
   gtk_widget_class_bind_template_callback (widget_class, copy_button_clicked);
 }
 
