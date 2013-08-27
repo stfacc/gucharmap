@@ -323,6 +323,20 @@ show_font_sel (GSimpleAction *action,
 }
 
 static void
+reset_title (GucharmapWindow *guw)
+{
+  GucharmapWindowPrivate *priv = gucharmap_window_get_instance_private (guw);
+  gchar *title;
+
+  if (gucharmap_charmap_get_font_fallback (guw->charmap))
+    {
+      title = gucharmap_charmap_get_active_chapter (guw->charmap);
+      gtk_header_bar_set_title (priv->header_bar, _(title));
+      g_free (title);
+    }
+}
+
+static void
 reset_font (GSimpleAction *action,
             GVariant      *parameter,
             gpointer       data)
@@ -330,8 +344,9 @@ reset_font (GSimpleAction *action,
   GucharmapWindow *guw = data;
   GucharmapWindowPrivate *priv = gucharmap_window_get_instance_private (guw);
 
-  gtk_header_bar_set_title (priv->header_bar, _("All fonts"));
   gucharmap_charmap_set_font_fallback (guw->charmap, TRUE);
+
+  reset_title (guw);
 
   gtk_widget_show (priv->font_sel_button);
   gtk_widget_hide (priv->reset_font_button);
@@ -748,7 +763,7 @@ fontsel_response_cb (GtkDialog *dialog,
   GucharmapWindowPrivate *priv = gucharmap_window_get_instance_private (guw);
   GucharmapMiniFontSelection *fontsel = GUCHARMAP_MINI_FONT_SELECTION (dialog);
   PangoFontDescription *font_desc;
-  char *font;
+  gchar *str;
 
   if (response_id == GTK_RESPONSE_OK)
     {
@@ -762,16 +777,29 @@ fontsel_response_cb (GtkDialog *dialog,
       gucharmap_charmap_set_font_fallback (guw->charmap, FALSE);
       guw->in_notification = FALSE;
 
-      font = pango_font_description_to_string (font_desc);
-      g_settings_set (guw->settings, "font", "ms", font);
+      str = pango_font_description_to_string (font_desc);
+      g_settings_set (guw->settings, "font", "ms", str);
+      g_free (str);
+
+      str = g_strdup_printf (_("Showing %s only"), pango_font_description_get_family (font_desc));
       gtk_header_bar_set_title (GTK_HEADER_BAR (priv->header_bar),
-                                font);
-      g_free (font);
+                                str);
+      g_free (str);
 
       gtk_widget_hide (fontsel);
       gtk_widget_show (priv->reset_font_button);
       gtk_widget_hide (priv->font_sel_button);
     }
+}
+
+static void
+active_chapter_cb (GObject *object,
+                   GParamSpec *pspec,
+                   gpointer data)
+{
+  GucharmapWindow *guw = data;
+
+  reset_title (guw);
 }
 
 static void
@@ -937,6 +965,9 @@ gucharmap_window_init (GucharmapWindow *guw)
 
   /* window geometry */
   gucharmap_settings_add_window (GTK_WINDOW (guw));
+
+  g_signal_connect (guw->charmap, "notify::active-chapter",
+                    G_CALLBACK (active_chapter_cb), guw);
 
   /* connect these only after applying the initial settings in order to
    * avoid unnecessary writes to GSettings.
