@@ -295,16 +295,13 @@ close_window (GSimpleAction *action,
 }
 
 static void
-show_font_properties (GSimpleAction *action,
-                      GVariant      *parameter,
-                      gpointer       data)
+show_font_properties (GucharmapChartable *chartable,
+                      gpointer            data)
 {
   GucharmapWindow *guw = data;
-  GucharmapChartable *chartable;
   GtkDialog *dialog;
   gunichar wc;
 
-  chartable = gucharmap_charmap_get_chartable (guw->charmap);
   wc = gucharmap_chartable_get_active_character (chartable);
 
   dialog = gucharmap_fontprops_dialog_new (guw, wc);
@@ -822,8 +819,6 @@ gucharmap_window_init (GucharmapWindow *guw)
 
     { "show-font-sel", show_font_sel, NULL, NULL, NULL },
     { "reset-font", reset_font, NULL, NULL, NULL },
-
-    { "show-font-properties", show_font_properties, NULL, NULL, NULL },
 
     { "zoom-in", font_bigger, NULL, NULL, NULL },
     { "zoom-out", font_smaller, NULL, NULL, NULL },
